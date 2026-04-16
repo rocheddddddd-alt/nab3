@@ -1,0 +1,1081 @@
+{% extends "base.html" %}
+
+{% block dashboard_content %}
+
+{% set safe_cal = today_cal | default(0) | int %}
+{% set safe_ex = today_exercise | default(0) | int %}
+{% set safe_sleep = today_sleep | default(0) | float %}
+{% set cal_goal = 500 %}
+{% set ex_goal = 30 %}
+{% set sl_goal = 8 %}
+
+{% set cal_pct = (safe_cal / cal_goal) if (safe_cal / cal_goal) < 1 else 1 %}
+{% set ex_pct = (safe_ex / ex_goal) if (safe_ex / ex_goal) < 1 else 1 %}
+{% set sl_pct = (safe_sleep / sl_goal) if (safe_sleep / sl_goal) < 1 else 1 %}
+
+{% set cal_offset = 251.3 * (1 - cal_pct) %}
+{% set ex_offset = 204.2 * (1 - ex_pct) %}
+{% set sl_offset = 157.1 * (1 - sl_pct) %}
+
+<div class="px-4 pt-5 pb-32 space-y-4 font-sans max-w-md mx-auto lg:max-w-none">
+    {% if post_test_ready %}
+    <a href="/questionnaire?type=post" class="block fade-in-up">
+        <div class="rounded-[24px] p-5 relative overflow-hidden shadow-lg border border-amber-400/30" style="background: linear-gradient(135deg, #78350f 0%, #b45309 60%, #d97706 100%);">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-amber-300/20 rounded-full blur-2xl pointer-events-none -translate-y-1/4 translate-x-1/4"></div>
+            <div class="relative z-10 flex items-center gap-4">
+                <div class="w-12 h-12 bg-white/15 rounded-2xl flex items-center justify-center text-2xl shrink-0 border border-white/20">📋</div>
+                <div class="flex-1">
+                    <p class="text-[10px] font-black text-amber-200 uppercase tracking-widest mb-0.5">แบบสอบถาม Post-test พร้อมแล้ว!</p>
+                    <h3 class="text-lg font-black text-white leading-tight">กรุณาทำแบบสอบถาม</h3>
+                    <p class="text-[11px] text-amber-200/80 font-medium mt-0.5">กดที่การ์ดนี้เพื่อเริ่มต้นได้เลย →</p>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-amber-300 shrink-0"></i>
+            </div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if role == 'user' %}
+    <div class="fade-in-up rounded-[28px] p-5 overflow-hidden relative shadow-[0_8px_32px_rgba(0,0,0,0.18)]" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #064e3b 100%);">
+        <div class="absolute top-0 right-0 w-40 h-40 rounded-full pointer-events-none" style="background: radial-gradient(circle, rgba(16,185,129,0.18) 0%, transparent 70%); transform: translate(30%, -30%);"></div>
+        <div class="absolute bottom-0 left-0 w-28 h-28 rounded-full pointer-events-none" style="background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%); transform: translate(-30%, 30%);"></div>
+        <div class="relative z-10 flex items-center justify-between mb-5 gap-3">
+            <div class="min-w-0">
+                <h2 class="text-lg font-black text-white leading-tight truncate">สวัสดี {{ name.split(' ')[0] if name else 'คุณ' }} 👋</h2>
+                <p id="aiGreetingText" class="text-[11px] text-emerald-300/80 font-semibold mt-0.5">{{ 'ท่านปฏิบัติภารกิจสุขภาพได้เป็นอย่างดีในวันนี้ ✨' if (today_exercise >= 30 or today_cal > 0) else 'ขอเชิญท่านเริ่มต้นกิจกรรมสุขภาพประจำวัน 🌱' }}</p>
+            </div>
+            <div class="text-right bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/10 shrink-0">
+                <p class="text-[9px] font-bold text-white/50 uppercase tracking-widest">ก้าววันนี้</p>
+                <p class="text-2xl font-black text-white tabular-nums leading-tight">{{ "{:,}".format(today_steps | default(0) | int) }}</p>
+                <p class="text-[9px] text-white/40 font-bold">/10,000 ก้าว</p>
+            </div>
+        </div>
+
+        <div class="relative z-10 flex justify-center mb-4">
+            <div class="relative w-56 h-32">
+                <svg class="absolute inset-0 w-full h-full" viewBox="0 0 200 110"><path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(244,63,94,0.25)" stroke-width="14" stroke-linecap="round"/><path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#F43F5E" stroke-width="14" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="{{ cal_offset }}" class="transition-all duration-1000 ease-out" style="filter: drop-shadow(0 0 6px rgba(244,63,94,0.6))"/></svg>
+                <svg class="absolute inset-0 w-full h-full" viewBox="0 0 200 110"><path d="M 35 100 A 65 65 0 0 1 165 100" fill="none" stroke="rgba(245,158,11,0.25)" stroke-width="12" stroke-linecap="round"/><path d="M 35 100 A 65 65 0 0 1 165 100" fill="none" stroke="#F59E0B" stroke-width="12" stroke-linecap="round" stroke-dasharray="204.2" stroke-dashoffset="{{ ex_offset }}" class="transition-all duration-1000 ease-out delay-100" style="filter: drop-shadow(0 0 5px rgba(245,158,11,0.5))"/></svg>
+                <svg class="absolute inset-0 w-full h-full" viewBox="0 0 200 110"><path d="M 50 100 A 50 50 0 0 1 150 100" fill="none" stroke="rgba(59,130,246,0.25)" stroke-width="10" stroke-linecap="round"/><path d="M 50 100 A 50 50 0 0 1 150 100" fill="none" stroke="#60a5fa" stroke-width="10" stroke-linecap="round" stroke-dasharray="157.1" stroke-dashoffset="{{ sl_offset }}" class="transition-all duration-1000 ease-out delay-200" style="filter: drop-shadow(0 0 5px rgba(96,165,250,0.5))"/></svg>
+            </div>
+        </div>
+
+        <div class="relative z-10 grid grid-cols-3 gap-2">
+            <div class="rounded-[16px] p-3 text-center" style="background: rgba(244,63,94,0.18); border: 1px solid rgba(244,63,94,0.25);"><span class="text-[8px] font-black text-rose-300 uppercase tracking-wide block mb-1">🔥 เผาผลาญ</span><p class="text-xl font-black text-white tabular-nums leading-none">{{ safe_cal }}</p><p class="text-[8px] text-white/40 font-semibold mt-0.5">/{{ cal_goal }} kcal</p></div>
+            <div class="rounded-[16px] p-3 text-center" style="background: rgba(245,158,11,0.18); border: 1px solid rgba(245,158,11,0.25);"><span class="text-[8px] font-black text-amber-300 uppercase tracking-wide block mb-1">⚡ ออกกำลัง</span><p class="text-xl font-black text-white tabular-nums leading-none">{{ safe_ex }}</p><p class="text-[8px] text-white/40 font-semibold mt-0.5">/{{ ex_goal }} นาที</p></div>
+            <div class="rounded-[16px] p-3 text-center" style="background: rgba(96,165,250,0.18); border: 1px solid rgba(96,165,250,0.25);"><span class="text-[8px] font-black text-blue-300 uppercase tracking-wide block mb-1">💤 นอนหลับ</span><p class="text-xl font-black text-white tabular-nums leading-none">{{ safe_sleep | round(1) }}</p><p class="text-[8px] text-white/40 font-semibold mt-0.5">/{{ sl_goal }} ชม.</p></div>
+        </div>
+    </div>
+
+    <div class="fade-in-up delay-1 bg-[#0D1117] rounded-[28px] p-5 relative overflow-hidden min-h-[160px] shadow-lg">
+        <div class="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -translate-y-1/4 translate-x-1/4"></div>
+        <div class="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl pointer-events-none translate-y-1/4 -translate-x-1/4"></div>
+        <div class="relative z-10 flex justify-between items-start">
+            <div>
+                <div class="flex items-center gap-2 mb-2"><div class="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center"><i data-lucide="dna" class="w-3.5 h-3.5 text-emerald-400"></i></div><span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Biological Age</span></div>
+                <div class="flex items-baseline gap-2"><h2 class="text-[3.5rem] font-black text-white tracking-tight leading-none tabular-nums">{% if health_stats and health_stats.get('biological_age') is not none %}{{ health_stats.get('biological_age') | round(1) }}{% else %}--{% endif %}</h2><span class="text-slate-500 text-base font-semibold">ปี</span></div>
+                {% if health_stats and health_stats.get('age_acceleration') is not none %}<div class="mt-2">{% if health_stats.get('age_acceleration') <= 0 %}<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/15"><div class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div><span>เด็กกว่า {{ health_stats.get('age_acceleration') | abs | round(1) }} ปี</span></div>{% else %}<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-400 border border-rose-500/15"><div class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></div><span>แก่กว่า +{{ health_stats.get('age_acceleration') | round(1) }} ปี</span></div>{% endif %}</div>{% endif %}
+            </div>
+            <a href="/anthropoage" class="w-12 h-12 bg-white/10 hover:bg-emerald-500/20 border border-white/10 rounded-[16px] flex items-center justify-center text-emerald-400 transition-all active:scale-95 shadow-sm"><i data-lucide="calculator" class="w-5 h-5"></i></a>
+        </div>
+        <div class="relative z-10 mt-4 pt-4 border-t border-white/5 flex items-center justify-between"><p class="text-[9px] text-slate-600 font-bold uppercase tracking-widest">Multi-Model Prediction</p><p class="text-[9px] text-slate-600">กดปุ่มเครื่องคิดเลข ➡️</p></div>
+    </div>
+
+    <!-- Environment cards: PM2.5 + UV Index -->
+    <div class="grid grid-cols-2 gap-3 fade-in-up delay-2">
+        <!-- PM2.5 / AQI -->
+        <div class="bg-white rounded-[24px] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-col justify-between min-h-[130px] mobile-mini-card">
+            <div class="flex justify-between items-center">
+                <div class="w-9 h-9 bg-slate-50 rounded-[12px] flex items-center justify-center border border-slate-100"><i data-lucide="wind" class="w-4 h-4 text-slate-500"></i></div>
+                <span class="text-[8px] text-slate-400 font-black uppercase tracking-widest">PM2.5 / AQI</span>
+            </div>
+            <div>
+                <p id="aqiDisplay" class="text-[2.2rem] leading-none font-black text-slate-900 tabular-nums mt-2">--</p>
+                <p id="pm25Status" class="text-[10px] font-bold mt-1 text-slate-500">กำลังโหลด...</p>
+            </div>
+        </div>
+        <!-- Temperature + UV Index (Real-time) -->
+        <div class="bg-white rounded-[24px] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-col justify-between min-h-[130px] mobile-mini-card" id="uvCard">
+            <div class="flex justify-between items-center">
+                <div class="w-9 h-9 bg-amber-50 rounded-[12px] flex items-center justify-center border border-amber-100"><i data-lucide="thermometer-sun" class="w-4 h-4 text-amber-500"></i></div>
+                <span class="text-[8px] text-slate-400 font-black uppercase tracking-widest">อุณหภูมิ / UV</span>
+            </div>
+            <div>
+                <p id="tempDisplay" class="text-[2.2rem] leading-none font-black text-slate-900 tabular-nums mt-2"><span id="tempVal">--</span><span class="text-base font-bold text-slate-400">°C</span></p>
+                <div class="flex items-center gap-1.5 mt-1">
+                    <span class="text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">UV: <span id="uvInline">--</span></span>
+                    <p id="uvStatus" class="text-[10px] font-bold text-slate-400"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 fade-in-up delay-3">
+        <div class="bg-white rounded-[24px] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-slate-100 flex flex-col justify-between h-[120px]">
+            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="calendar" class="w-3 h-3 text-emerald-500"></i> อายุจริง</span>
+            <div class="flex items-baseline gap-1"><span id="displayRealAge" class="text-4xl font-black text-slate-900 tabular-nums tracking-tight">{% if q_data and q_data.get('age') %}{{ q_data.get('age') }}{% else %}--{% endif %}</span><span class="text-[11px] font-bold text-slate-400">ปี</span></div>
+        </div>
+        <button onclick="openLabSheet('epigenetic')" class="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-[24px] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.05)] flex flex-col justify-between h-[120px] border border-emerald-100/60 text-left active:scale-95 transition-transform w-full">
+            <span class="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5 w-full">
+                <i data-lucide="dna" class="w-3 h-3 shrink-0"></i>
+                <span>Epigenetic Age</span>
+                <i data-lucide="chevron-right" class="w-3 h-3 ml-auto text-emerald-400"></i>
+            </span>
+            <div class="flex items-baseline gap-1">
+                <span id="epiValueDisplay" class="text-4xl font-black text-emerald-900 tabular-nums tracking-tight">{{ health_stats.get('epigenetic_age_pre') | round(1) if health_stats and health_stats.get('epigenetic_age_pre') else (health_stats.get('epigenetic_age') | round(1) if health_stats and health_stats.get('epigenetic_age') else '--') }}</span>
+                <span class="text-[11px] font-bold text-emerald-600">ปี</span>
+            </div>
+        </button>
+    </div>
+
+    <button onclick="openLabSheet('inbody')" class="fade-in-up delay-3 bg-gradient-to-br from-sky-50 to-blue-50 rounded-[24px] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-sky-100/60 w-full text-left active:scale-[0.98] transition-transform">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-[9px] font-black text-sky-600 uppercase tracking-widest flex items-center gap-1.5">
+                <i data-lucide="scale" class="w-3 h-3"></i> InBody Score
+            </span>
+            <span class="flex items-center gap-1 text-[9px] font-black text-sky-400">
+                ดูรายละเอียด <i data-lucide="chevron-right" class="w-3 h-3"></i>
+            </span>
+        </div>
+        <div class="flex items-baseline gap-1.5">
+            <span id="inbodyValueDisplay" class="text-5xl font-black text-sky-900 tabular-nums tracking-tight">{{ health_stats.get('fitness_score_pre') | round(1) if health_stats and health_stats.get('fitness_score_pre') else (health_stats.get('fitness_score') | round(1) if health_stats and health_stats.get('fitness_score') else '--') }}</span>
+            <span class="text-sm font-bold text-sky-600">คะแนน</span>
+        </div>
+        {% if health_stats and (health_stats.get('fitness_score_pre') or health_stats.get('fitness_score')) %}<p class="text-[10px] text-sky-500 font-semibold mt-1">ผลการวิเคราะห์องค์ประกอบร่างกาย (InBody)</p>{% else %}<p class="text-[10px] text-slate-400 font-semibold mt-1">รอผลการวิเคราะห์จากเจ้าหน้าที่</p>{% endif %}
+    </button>
+
+    <!-- ───── Lab Period Bottom Sheet ───── -->
+    <div id="labPeriodSheet" class="hidden fixed inset-0 z-[400]">
+        <div id="labPeriodBg" onclick="closeLabSheet()" class="absolute inset-0 bg-black/50 backdrop-blur-sm" style="opacity:0;transition:opacity .3s;"></div>
+        <div id="labPeriodPanel" class="absolute bottom-0 left-0 right-0 bg-white rounded-t-[28px] shadow-2xl max-h-[85dvh] flex flex-col" style="transform:translateY(100%);transition:transform .35s cubic-bezier(0.22,1,0.36,1);">
+            <!-- Handle -->
+            <div class="flex justify-center pt-3 pb-1 shrink-0">
+                <div class="w-10 h-1 bg-slate-200 rounded-full"></div>
+            </div>
+            <!-- Title -->
+            <div class="px-6 pb-3 shrink-0 flex items-center gap-3">
+                <div id="labSheetIcon" class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"></div>
+                <div>
+                    <p id="labSheetTitle" class="font-black text-slate-900 text-base leading-tight"></p>
+                    <p class="text-[10px] text-slate-400 font-bold mt-0.5">แตะเพื่อดาวน์โหลดไฟล์</p>
+                </div>
+            </div>
+            <!-- Period tabs -->
+            <div class="flex gap-2 px-6 pb-3 shrink-0">
+                <button id="tabPre" onclick="switchPeriodTab('pre')"
+                    class="flex-1 py-2.5 rounded-2xl text-xs font-black border-2 transition-all border-emerald-400 bg-emerald-50 text-emerald-800">
+                    ก่อนเข้าร่วมโปรแกรม
+                </button>
+                <button id="tabPost" onclick="switchPeriodTab('post')"
+                    class="flex-1 py-2.5 rounded-2xl text-xs font-black border-2 transition-all border-slate-200 bg-white text-slate-500">
+                    หลังเข้าร่วมโปรแกรม
+                </button>
+            </div>
+            <!-- Content -->
+            <div id="labSheetContent" class="flex-1 overflow-y-auto px-6 pb-8 space-y-3"></div>
+        </div>
+    </div>
+
+    <script>
+    const _LAB_DATA = {{ lab_periods_data | safe }};
+    const _HEALTH_PRE  = {
+        epigenetic: {{ health_stats.get('epigenetic_age_pre') | tojson }},
+        inbody:     {{ health_stats.get('fitness_score_pre') | tojson }}
+    };
+    const _HEALTH_POST = {
+        epigenetic: {{ health_stats.get('epigenetic_age_post') | tojson }},
+        inbody:     {{ health_stats.get('fitness_score_post') | tojson }}
+    };
+    const _CARD_UNIT   = { epigenetic: 'ปี', inbody: 'คะแนน' };
+    const _CARD_IDS    = { epigenetic: 'epiValueDisplay', inbody: 'inbodyValueDisplay' };
+
+    let _currentLabType = 'epigenetic';
+    let _currentPeriod  = 'pre';
+
+    const LAB_CFG = {
+        epigenetic: {
+            title: 'Epigenetic Age',
+            iconBg: 'bg-emerald-100',
+            iconHtml: '<i data-lucide="dna" class="w-5 h-5 text-emerald-700"></i>',
+        },
+        inbody: {
+            title: 'InBody Score',
+            iconBg: 'bg-sky-100',
+            iconHtml: '<i data-lucide="scale" class="w-5 h-5 text-sky-700"></i>',
+        }
+    };
+
+    function _updateCardValue(type, period) {
+        const val = period === 'pre' ? _HEALTH_PRE[type] : _HEALTH_POST[type];
+        const elId = _CARD_IDS[type];
+        const el = document.getElementById(elId);
+        if (!el) return;
+        el.textContent = (val !== null && val !== undefined) ? parseFloat(val).toFixed(1) : '--';
+    }
+
+    function openLabSheet(type) {
+        _currentLabType = type;
+        _currentPeriod  = 'pre';
+        const cfg = LAB_CFG[type];
+        document.getElementById('labSheetTitle').textContent = cfg.title;
+        const iconEl = document.getElementById('labSheetIcon');
+        iconEl.className = `w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${cfg.iconBg}`;
+        iconEl.innerHTML = cfg.iconHtml;
+        lucide.createIcons({nodes: [iconEl]});
+        switchPeriodTab('pre');
+        const sheet = document.getElementById('labPeriodSheet');
+        sheet.classList.remove('hidden');
+        requestAnimationFrame(() => {
+            document.getElementById('labPeriodBg').style.opacity = '1';
+            document.getElementById('labPeriodPanel').style.transform = 'translateY(0)';
+        });
+    }
+
+    function closeLabSheet() {
+        document.getElementById('labPeriodBg').style.opacity = '0';
+        document.getElementById('labPeriodPanel').style.transform = 'translateY(100%)';
+        setTimeout(() => document.getElementById('labPeriodSheet').classList.add('hidden'), 350);
+    }
+
+    function switchPeriodTab(period) {
+        _currentPeriod = period;
+        const preBtn  = document.getElementById('tabPre');
+        const postBtn = document.getElementById('tabPost');
+        if (period === 'pre') {
+            preBtn.className  = 'flex-1 py-2.5 rounded-2xl text-xs font-black border-2 transition-all border-emerald-500 bg-emerald-100 text-emerald-800';
+            postBtn.className = 'flex-1 py-2.5 rounded-2xl text-xs font-black border-2 transition-all border-slate-200 bg-white text-slate-500';
+        } else {
+            preBtn.className  = 'flex-1 py-2.5 rounded-2xl text-xs font-black border-2 transition-all border-slate-200 bg-white text-slate-500';
+            postBtn.className = 'flex-1 py-2.5 rounded-2xl text-xs font-black border-2 transition-all border-violet-500 bg-violet-100 text-violet-800';
+        }
+        _updateCardValue(_currentLabType, period);
+        renderLabSheetContent();
+    }
+
+    function renderLabSheetContent() {
+        const content = document.getElementById('labSheetContent');
+        const rows = (_LAB_DATA[_currentLabType] || {})[_currentPeriod] || [];
+        const periodLabel = _currentPeriod === 'pre' ? 'ก่อนเข้าร่วมโปรแกรม' : 'หลังเข้าร่วมโปรแกรม';
+        const dotColor = _currentPeriod === 'pre' ? 'bg-emerald-400' : 'bg-violet-400';
+        const textColor = _currentPeriod === 'pre' ? 'text-emerald-700' : 'text-violet-700';
+        if (!rows.length) {
+            content.innerHTML = `<div class="flex flex-col items-center py-10 gap-3">
+                <div class="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center">
+                    <i data-lucide="flask-conical" class="w-6 h-6 text-slate-300"></i>
+                </div>
+                <p class="text-sm font-bold text-slate-400 text-center">ยังไม่มีผลแลป<br><span class="${textColor} font-black">${periodLabel}</span></p>
+            </div>`;
+            lucide.createIcons({nodes: [content]});
+            return;
+        }
+        content.innerHTML = rows.map((lab, i) => {
+            const isImg = /\.(png|jpg|jpeg|webp|heic)$/i.test(lab.filename || '');
+            const isPdf = /\.pdf$/i.test(lab.filename || '');
+            const fileIcon = isPdf ? '📄' : isImg ? '🖼️' : '📁';
+            const imgSection = isImg && lab.url ? `<img src="${lab.url}" class="w-full h-32 object-cover rounded-xl mb-2" alt="">` : '';
+            const btnClass = _currentPeriod === 'pre'
+                ? 'flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-black text-xs px-4 py-2.5 rounded-xl w-full'
+                : 'flex items-center gap-2 bg-violet-50 border border-violet-200 text-violet-700 font-black text-xs px-4 py-2.5 rounded-xl w-full';
+            return `<div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                ${imgSection}
+                <div class="flex items-start gap-2 mb-2.5">
+                    <span class="w-2 h-2 rounded-full ${dotColor} mt-1.5 shrink-0"></span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-black text-slate-800 leading-snug truncate">${lab.original_name || 'ผลแล็บ'}</p>
+                        ${lab.notes ? `<p class="text-[11px] text-slate-500 mt-0.5">${lab.notes}</p>` : ''}
+                        <p class="text-[10px] text-slate-400 mt-1">${lab.uploaded_at || ''}</p>
+                    </div>
+                </div>
+                ${lab.has_file && lab.url
+                    ? `<a href="${lab.url}" target="_blank" class="${btnClass}">
+                        <i data-lucide="download" class="w-3.5 h-3.5 shrink-0"></i>
+                        ${fileIcon} ${isPdf ? 'เปิด PDF' : 'ดูรูปภาพ'}
+                       </a>`
+                    : `<span class="text-[11px] text-slate-400 italic">บันทึกค่าตัวเลขเท่านั้น (ไม่มีไฟล์แนบ)</span>`
+                }
+            </div>`;
+        }).join('');
+        lucide.createIcons({nodes: [content]});
+    }
+    </script>
+
+    <div class="fade-in-up delay-3 bg-gradient-to-br from-amber-50 to-yellow-50 rounded-[24px] p-5 border border-amber-100 shadow-sm">
+        <div class="flex items-center justify-between mb-3"><div class="flex items-center gap-2"><div class="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center"><i data-lucide="award" class="w-4 h-4 text-amber-600"></i></div><div><p class="text-sm font-black text-slate-800">เกียรติบัตร</p><p class="text-[10px] text-amber-500 font-bold">Certificate of Achievement</p></div></div></div>
+        <div id="certCardList" class="space-y-2 min-h-[40px]"><p class="text-xs text-slate-400 font-medium text-center py-2">กำลังโหลด...</p></div>
+    </div>
+
+    {% endif %}
+
+    {% if role in ['admin', 'researcher'] %}
+    <div class="w-full space-y-6 max-w-6xl mx-auto">
+        <a href="/admin" class="fade-in-up flex items-center justify-between bg-gradient-to-r from-slate-900 to-slate-800 rounded-[20px] p-4 border border-slate-700 shadow-md hover:from-slate-800 hover:to-slate-700 transition-all group">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-500/30"><i data-lucide="layout-dashboard" class="w-5 h-5 text-emerald-400"></i></div>
+                <div><p class="font-black text-white text-sm leading-none">Admin Panel</p><p class="text-[10px] text-slate-400 mt-0.5">จัดการผู้ใช้ เนื้อหา และตั้งค่าแบรนด์</p></div>
+            </div>
+            <div class="flex items-center gap-1 text-emerald-400 text-xs font-bold group-hover:gap-2 transition-all">เปิด <i data-lucide="arrow-right" class="w-4 h-4"></i></div>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Temperature + UV Index real-time via Open-Meteo ── */
+(function loadWeather() {
+    const tempEl  = document.getElementById('tempDisplay');
+    const uvEl    = document.getElementById('uvInline');
+    const statusEl= document.getElementById('uvStatus');
+    if (!tempEl) return;
+
+    function uvLabel(uv) {
+        if (uv < 3)  return '🟢 ต่ำ';
+        if (uv < 6)  return '🟡 ปานกลาง';
+        if (uv < 8)  return '🟠 สูง';
+        if (uv < 11) return '🔴 สูงมาก';
+        return               '☠️ อันตราย';
+    }
+
+    function closestIdx(times, now) {
+        let best = 0, bestDiff = Infinity;
+        times.forEach((t, i) => { const d = Math.abs(new Date(t) - now); if (d < bestDiff) { bestDiff = d; best = i; } });
+        return best;
+    }
+
+    function fetchWeather(lat, lon) {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,uv_index&forecast_days=1&timezone=auto`;
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                const times = data.hourly?.time || [];
+                const temps = data.hourly?.temperature_2m || [];
+                const uvs   = data.hourly?.uv_index || [];
+                const idx   = closestIdx(times, new Date());
+                const temp  = temps[idx];
+                const uv    = uvs[idx];
+
+                const valEl = document.getElementById('tempVal');
+                if (temp !== undefined && temp !== null && valEl) {
+                    valEl.textContent = Math.round(temp * 10) / 10;
+                } else if (valEl) {
+                    valEl.textContent = '--';
+                }
+
+                if (uv !== undefined && uv !== null) {
+                    uvEl.textContent = Math.round(uv * 10) / 10;
+                    statusEl.textContent = uvLabel(uv);
+                } else {
+                    uvEl.textContent = '--';
+                }
+            })
+            .catch(() => {
+                tempEl.childNodes[0].textContent = '--';
+                uvEl.textContent = '--';
+                statusEl.textContent = '⚠️ โหลดไม่ได้';
+            });
+    }
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            pos => fetchWeather(pos.coords.latitude, pos.coords.longitude),
+            ()  => fetchWeather(13.7563, 100.5018),
+            { timeout: 8000 }
+        );
+    } else {
+        fetchWeather(13.7563, 100.5018);
+    }
+})();
+
+/* ── AQI / PM2.5 via Open-Meteo Air Quality ── */
+(function loadAQI() {
+    const display = document.getElementById('aqiDisplay');
+    const status  = document.getElementById('pm25Status');
+    if (!display) return;
+
+    function aqiLabel(v) {
+        if (v < 12)  return { text: 'อากาศดี ✅',       color: 'text-emerald-600' };
+        if (v < 35)  return { text: 'ปานกลาง ⚠️',       color: 'text-yellow-600' };
+        if (v < 55)  return { text: 'มีผลต่อสุขภาพ 🟠', color: 'text-orange-600' };
+        if (v < 150) return { text: 'ไม่ดีต่อสุขภาพ 🔴', color: 'text-red-600' };
+        return               { text: 'อันตราย! ☠️',       color: 'text-rose-800' };
+    }
+
+    function fetchAQI(lat, lon) {
+        const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm2_5&forecast_days=1&timezone=auto`;
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                const times = data.hourly?.time || [];
+                const vals  = data.hourly?.pm2_5 || [];
+                const now   = new Date();
+                let best = null, bestDiff = Infinity;
+                for (let i = 0; i < times.length; i++) {
+                    const d = Math.abs(new Date(times[i]) - now);
+                    if (d < bestDiff) { bestDiff = d; best = vals[i]; }
+                }
+                if (best !== null) {
+                    display.textContent = Math.round(best * 10) / 10;
+                    const lbl = aqiLabel(best);
+                    status.textContent = lbl.text;
+                    status.className = 'text-[10px] font-bold mt-1 ' + lbl.color;
+                } else {
+                    display.textContent = '--';
+                    status.textContent = 'ไม่มีข้อมูล';
+                    status.className = 'text-[10px] font-bold mt-1 text-slate-400';
+                }
+            })
+            .catch(() => {
+                display.textContent = '--';
+                status.textContent = 'โหลดไม่ได้';
+                status.className = 'text-[10px] font-bold mt-1 text-rose-400';
+            });
+    }
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            pos => fetchAQI(pos.coords.latitude, pos.coords.longitude),
+            () => fetchAQI(13.7563, 100.5018),
+            { timeout: 8000 }
+        );
+    } else {
+        fetchAQI(13.7563, 100.5018);
+    }
+})();
+
+/* ── Load Certificates — ส่ง auth header ตรง ๆ (interceptor อาจยังไม่ได้ setup) ── */
+function loadCerts() {
+    const list = document.getElementById('certCardList');
+    if (!list) return;
+    const token = localStorage.getItem('auth_token');
+    const headers = token ? { 'X-Auth-Token': token } : {};
+    fetch('/api/my_certificates', { headers })
+        .then(r => { if (!r.ok) throw new Error('auth'); return r.json(); })
+        .then(certs => {
+            if (!certs.length) {
+                list.innerHTML = '<p class="text-xs text-slate-400 font-medium text-center py-2">ยังไม่มีเกียรติบัตร</p>';
+                return;
+            }
+            list.innerHTML = certs.map(c => {
+                const fname = (c.original_name || 'เกียรติบัตร');
+                const isPdf = fname.toLowerCase().endsWith('.pdf');
+                return `<a href="${c.url}" target="_blank" ${isPdf ? '' : 'download'}
+                   class="flex items-center gap-3 bg-amber-50 hover:bg-amber-100 border border-amber-200/60 rounded-2xl px-3 py-2.5 transition-colors group">
+                    <div class="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center shrink-0 text-base">${isPdf ? '📄' : '🏆'}</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-black text-slate-800 truncate">${fname}</p>
+                        <p class="text-[10px] text-amber-500 font-medium">${c.issued_at ? c.issued_at.slice(0,10) : ''} ${c.notes ? '· ' + c.notes : ''}</p>
+                    </div>
+                    <svg class="w-4 h-4 text-amber-500 group-hover:text-amber-700 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                </a>`;
+            }).join('');
+        })
+        .catch(() => {
+            if (list) list.innerHTML = '<p class="text-xs text-rose-400 font-medium text-center py-2">โหลดไม่ได้ กรุณารีเฟรช</p>';
+        });
+}
+/* รอให้ DOM พร้อมก่อน (ให้ interceptor setup ก่อน loadCerts) */
+window.addEventListener('load', loadCerts);
+
+/* ── Floating Chat Head — drag + panel ── */
+(function initChatHead() {
+    const head    = document.getElementById('chatHead');
+    const btn     = document.getElementById('chatHeadBtn');
+    const panel   = document.getElementById('chatPanel');
+    const backdrop= document.getElementById('chatBackdrop');
+    if (!head || !panel) return;
+
+    let chatOpen = false;
+    let dragging = false;
+    let startX, startY, startLeft, startTop, moved;
+
+    /* ─── open / close ─── */
+    window.toggleChat = function() {
+        if (moved) { moved = false; return; }
+        chatOpen ? closeChatPanel() : openChatPanel();
+    };
+    window._chatPanelOpen = false;
+    window.openChatPanel = function() {
+        chatOpen = true;
+        window._chatPanelOpen = true;
+        panel.style.maxWidth     = '100vw';
+        panel.style.width        = '100vw';
+        panel.style.height       = '100dvh';
+        panel.style.top          = '0';
+        panel.style.bottom       = '0';
+        panel.style.left         = '0';
+        panel.style.right        = '0';
+        panel.style.margin       = '0';
+        panel.style.borderRadius = '0';
+        const panelBody = document.getElementById('chatPanelBody');
+        const dragBar   = document.getElementById('chatDragBar');
+        const expandIcon= document.getElementById('chatExpandIcon');
+        if (panelBody) { panelBody.style.maxHeight = 'none'; panelBody.style.flex = '1'; }
+        if (dragBar)   dragBar.style.display = 'none';
+        if (expandIcon){ expandIcon.setAttribute('data-lucide','minimize-2'); lucide.createIcons(); }
+        panel.style.transform = 'translateY(0)';
+        backdrop.style.opacity = '1';
+        backdrop.style.pointerEvents = 'all';
+        head.style.opacity       = '0';
+        head.style.pointerEvents = 'none';
+        head.style.transform     = 'scale(0.6)';
+        const feed = document.getElementById('chatFeed');
+        if (feed) setTimeout(() => { feed.scrollTop = feed.scrollHeight; }, 450);
+        /* ล้าง badge ทันที */
+        const badge = document.getElementById('chatBadge');
+        if (badge) badge.style.display = 'none';
+        /* mark read จาก bubbles ที่มีอยู่ */
+        const bubbles = feed ? feed.querySelectorAll('[data-msg-id]') : [];
+        if (bubbles.length > 0) {
+            const maxId = Math.max(...[...bubbles].map(b => parseInt(b.dataset.msgId || 0)));
+            if (typeof markChatRead === 'function') markChatRead(maxId);
+        }
+    };
+    window.closeChatPanel = function() {
+        chatOpen = false;
+        window._chatPanelOpen = false;
+        panel.style.transform    = 'translateY(110%)';
+        panel.style.height       = '';
+        panel.style.top          = '';
+        panel.style.width        = '';
+        panel.style.maxWidth     = '480px';
+        panel.style.margin       = '0 auto';
+        panel.style.borderRadius = '28px 28px 0 0';
+        const panelBody = document.getElementById('chatPanelBody');
+        if (panelBody) { panelBody.style.maxHeight = '82dvh'; panelBody.style.flex = ''; }
+        backdrop.style.opacity = '0';
+        backdrop.style.pointerEvents = 'none';
+        head.style.opacity       = '1';
+        head.style.pointerEvents = 'auto';
+        head.style.transform     = 'scale(1)';
+    };
+
+    /* ─── draggable (touch + mouse) ─── */
+    function getPos(e) {
+        return e.touches ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+                         : { x: e.clientX, y: e.clientY };
+    }
+    function onStart(e) {
+        if (chatOpen) return;
+        const pos = getPos(e);
+        const rect = head.getBoundingClientRect();
+        startX = pos.x; startY = pos.y;
+        startLeft = rect.left; startTop = rect.top;
+        moved = false; dragging = true;
+        head.style.transition = 'none';
+    }
+    function onMove(e) {
+        if (!dragging) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        const dx = pos.x - startX, dy = pos.y - startY;
+        if (Math.abs(dx) + Math.abs(dy) > 6) moved = true;
+        const newLeft = Math.max(8, Math.min(window.innerWidth - 68, startLeft + dx));
+        const newTop  = Math.max(8, Math.min(window.innerHeight - 68, startTop + dy));
+        head.style.left = newLeft + 'px';
+        head.style.top  = newTop  + 'px';
+        head.style.right = 'auto';
+        head.style.bottom = 'auto';
+        head.style.position = 'fixed';
+    }
+    function onEnd() {
+        if (!dragging) return;
+        dragging = false;
+        head.style.transition = 'left 0.3s cubic-bezier(0.22,1,0.36,1), top 0.15s ease';
+        /* snap to nearest horizontal edge */
+        const rect = head.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        if (cx < window.innerWidth / 2) {
+            head.style.left = '12px';
+        } else {
+            head.style.left = (window.innerWidth - rect.width - 12) + 'px';
+        }
+    }
+
+    head.addEventListener('mousedown',  onStart);
+    head.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('mousemove',  onMove);
+    document.addEventListener('touchmove',  onMove, { passive: false });
+    document.addEventListener('mouseup',  onEnd);
+    document.addEventListener('touchend', onEnd);
+
+    btn.addEventListener('click', window.toggleChat);
+
+    /* ─── pulse animation on the button ─── */
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes chatPulse {
+        0%,100% { box-shadow: 0 8px 28px rgba(99,102,241,0.5),0 2px 8px rgba(0,0,0,0.12); }
+        50%      { box-shadow: 0 8px 36px rgba(99,102,241,0.75),0 0 0 8px rgba(99,102,241,0.12); }
+      }
+      #chatHeadBtn { animation: chatPulse 3s ease-in-out infinite; }
+      #chatHeadBtn:hover { transform: scale(1.08) !important; }
+      #chatHead {
+        transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+      }
+    `;
+    document.head.appendChild(style);
+})();
+</script>
+
+<script>
+/* ── AI Greeting ── */
+(async function loadAIGreeting() {
+    const el = document.getElementById('aiGreetingText');
+    if (!el) return;
+
+    const todayEx = {{ today_exercise | default(0) | int }};
+    const todayCal = {{ today_cal | default(0) | int }};
+    const todaySleep = {{ today_sleep | default(0) | float }};
+    const userName = "{{ name.split(' ')[0] if name else 'คุณ' }}";
+
+    let missionsDone = 0;
+    try {
+        const r = await fetch('/health');
+        if (r.ok) {
+            const html = await r.text();
+            const matches = html.match(/bg-emerald-500 text-white rounded-full.*?check/gs);
+            missionsDone = matches ? matches.length : 0;
+        }
+    } catch(_) {}
+
+    try {
+        const res = await fetch('/api/ai_greeting', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                missions_done: missionsDone,
+                total_missions: 5,
+                exercise_done: todayEx >= 30,
+                education_done: false,
+                name: userName,
+            })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.message) el.textContent = data.message;
+        }
+    } catch(_) {}
+})();
+</script>
+{% endblock %}
+
+{% block body_extras %}
+{% if role == 'user' %}
+<!-- ══════════════════════════════════════
+     FLOATING CHAT HEAD — body level (fixed works on all mobile browsers here)
+════════════════════════════════════════ -->
+
+<!-- Backdrop -->
+<div id="chatBackdrop" onclick="closeChatPanel()"
+     style="position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:9970;opacity:0;pointer-events:none;transition:opacity 0.3s ease;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);"></div>
+
+<!-- Chat Panel (slides up, supports fullscreen) -->
+<div id="chatPanel"
+     style="position:fixed;bottom:0;left:0;right:0;z-index:9975;transform:translateY(110%);transition:transform 0.4s cubic-bezier(0.22,1,0.36,1),height 0.35s cubic-bezier(0.22,1,0.36,1),border-radius 0.35s ease,max-width 0.35s ease;max-width:480px;margin:0 auto;border-radius:28px 28px 0 0;overflow:hidden;box-shadow:0 -8px 40px rgba(0,0,0,0.18);display:flex;flex-direction:column;">
+
+  <!-- Panel Header -->
+  <div id="chatPanelHeader" style="background:linear-gradient(135deg,#3b82f6 0%,#6366f1 100%);padding:16px 20px 14px;flex-shrink:0;">
+    <div id="chatDragBar" style="width:36px;height:4px;background:rgba(255,255,255,0.4);border-radius:2px;margin:0 auto 12px;"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:38px;height:38px;background:rgba(255,255,255,0.2);border-radius:14px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.25);flex-shrink:0;">
+          <i data-lucide="message-circle-heart" style="width:18px;height:18px;color:white;"></i>
+        </div>
+        <div>
+          <p style="font-size:15px;font-weight:900;color:white;line-height:1;">แชร์ประสบการณ์</p>
+          <p style="font-size:10px;color:rgba(255,255,255,0.65);font-weight:700;margin-top:2px;">Share Your Experience</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <!-- Fullscreen expand/collapse button -->
+        <button id="chatExpandBtn" onclick="toggleChatFullscreen()"
+                style="width:34px;height:34px;background:rgba(255,255,255,0.15);border-radius:50%;border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;cursor:pointer;"
+                title="ขยายเต็มจอ">
+          <i id="chatExpandIcon" data-lucide="maximize-2" style="width:15px;height:15px;color:white;"></i>
+        </button>
+        <!-- Close button -->
+        <button onclick="closeChatPanel()"
+                style="width:34px;height:34px;background:rgba(255,255,255,0.15);border-radius:50%;border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+          <i data-lucide="x" style="width:15px;height:15px;color:white;"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel Body -->
+  <div id="chatPanelBody" style="background:#f8fafc;display:flex;flex-direction:column;flex:1;min-height:0;max-height:82dvh;transition:max-height 0.35s ease;">
+
+    <!-- Feed -->
+    <div id="chatFeed" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;">
+      <div id="chatEmpty" style="text-align:center;padding:48px 0;color:#94a3b8;display:none;">
+        <div style="font-size:44px;margin-bottom:10px;">💬</div>
+        <p style="font-size:14px;font-weight:700;">ยังไม่มีโพสต์</p>
+        <p style="font-size:12px;margin-top:4px;">เป็นคนแรกที่แบ่งปันประสบการณ์!</p>
+      </div>
+    </div>
+
+    <!-- Input area -->
+    <div style="border-top:1px solid #f1f5f9;padding:10px 12px 16px;background:white;flex-shrink:0;">
+      <!-- File preview -->
+      <div id="chatFilePreview" style="display:none;margin-bottom:8px;padding:8px 10px;background:#f8fafc;border-radius:12px;border:1.5px solid #e2e8f0;font-size:12px;color:#64748b;font-weight:600;display:none;align-items:center;gap:8px;">
+        <span id="chatFilePreviewName" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">file.jpg</span>
+        <button onclick="clearChatFile()" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:14px;line-height:1;padding:0 2px;" title="ยกเลิก">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <!-- File attach button -->
+        <button onclick="document.getElementById('chatFileInput').click()" title="แนบรูป/ไฟล์"
+                style="width:36px;height:36px;border-radius:12px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;border:1.5px solid #e2e8f0;cursor:pointer;flex-shrink:0;transition:background 0.2s;"
+                onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+          <i data-lucide="image-plus" style="width:16px;height:16px;color:#64748b;"></i>
+        </button>
+        <input type="file" id="chatFileInput" accept="image/*,video/*,.pdf,.doc,.docx" class="hidden" style="display:none;" onchange="handleChatFile(this)">
+        <textarea id="chatInput" rows="2" placeholder="พิมพ์ข้อความ..."
+                  style="flex:1;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:16px;padding:10px 14px;font-size:13px;color:#334155;resize:none;outline:none;font-family:inherit;transition:border-color 0.2s;"
+                  onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'"
+                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage();}"></textarea>
+        <button onclick="sendChatMessage()" id="chatSendBtn"
+                style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#6366f1);display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(99,102,241,0.35);flex-shrink:0;">
+          <i data-lucide="send" style="width:15px;height:15px;color:white;margin-left:1px;"></i>
+        </button>
+      </div>
+      <p style="font-size:10px;color:#94a3b8;margin-top:5px;font-weight:500;">Enter ส่ง • Shift+Enter ขึ้นบรรทัดใหม่ • แนบรูปหรือไฟล์ได้</p>
+    </div>
+  </div>
+</div>
+
+<!-- Floating Chat Head (draggable) -->
+<div id="chatHead"
+     style="position:fixed;bottom:96px;right:20px;z-index:9980;touch-action:none;user-select:none;">
+  <button id="chatHeadBtn"
+          style="width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1);
+                 box-shadow:0 8px 28px rgba(99,102,241,0.5),0 2px 8px rgba(0,0,0,0.12);
+                 border:3px solid white;display:flex;align-items:center;justify-content:center;
+                 cursor:pointer;transition:transform 0.2s ease;position:relative;">
+    <i data-lucide="message-circle-heart" style="width:24px;height:24px;color:white;"></i>
+  </button>
+  <div id="chatBadge" style="position:absolute;top:-3px;right:-3px;min-width:20px;height:20px;background:#ef4444;
+              border-radius:10px;border:2.5px solid white;display:none;align-items:center;justify-content:center;
+              padding:0 4px;pointer-events:none;">
+    <span id="chatBadgeNum" style="font-size:9px;font-weight:900;color:white;"></span>
+  </div>
+</div>
+
+<script>
+/* ── Fullscreen expand/collapse ── */
+(function initChatFullscreen() {
+    let isFullscreen = false;
+    const panel     = document.getElementById('chatPanel');
+    const body      = document.getElementById('chatPanelBody');
+    const icon      = document.getElementById('chatExpandIcon');
+    const dragBar   = document.getElementById('chatDragBar');
+    if (!panel) return;
+
+    window.toggleChatFullscreen = function() {
+        isFullscreen = !isFullscreen;
+        if (isFullscreen) {
+            panel.style.maxWidth    = '100vw';
+            panel.style.width       = '100vw';
+            panel.style.height      = '100dvh';
+            panel.style.top         = '0';
+            panel.style.bottom      = '0';
+            panel.style.left        = '0';
+            panel.style.right       = '0';
+            panel.style.margin      = '0';
+            panel.style.borderRadius= '0';
+            body.style.maxHeight    = 'none';
+            body.style.flex         = '1';
+            dragBar.style.display   = 'none';
+            icon.setAttribute('data-lucide', 'minimize-2');
+        } else {
+            panel.style.maxWidth    = '480px';
+            panel.style.width       = '';
+            panel.style.height      = '';
+            panel.style.top         = '';
+            panel.style.bottom      = '0';
+            panel.style.left        = '0';
+            panel.style.right       = '0';
+            panel.style.margin      = '0 auto';
+            panel.style.borderRadius= '28px 28px 0 0';
+            body.style.maxHeight    = '82dvh';
+            body.style.flex         = '';
+            dragBar.style.display   = 'block';
+            icon.setAttribute('data-lucide', 'maximize-2');
+        }
+        lucide.createIcons();
+        const feed = document.getElementById('chatFeed');
+        if (feed) setTimeout(() => { feed.scrollTop = feed.scrollHeight; }, 380);
+    };
+})();
+
+/* ── AJAX Chat ── */
+(function initChat() {
+    const MY_USER_ID = {{ session.get('user_id', 0) }};
+    const IS_ADMIN   = {{ 'true' if session.get('role') in ['admin', 'researcher'] else 'false' }};
+    const AVATAR_COLORS = ['#3b82f6','#6366f1','#8b5cf6','#ec4899','#f97316','#10b981','#06b6d4'];
+
+    let _knownIds = new Set();
+    let _chatFile = null;
+    let _lastReadId = 0;   /* อัปเดตจาก server ทุก poll */
+
+    function avatarColor(name) {
+        let h = 0;
+        for (let i = 0; i < (name||'').length; i++) h = (h * 31 + name.charCodeAt(i)) % AVATAR_COLORS.length;
+        return AVATAR_COLORS[Math.abs(h)];
+    }
+
+    /* ── ไฟล์แนบ ── */
+    window.handleChatFile = function(input) {
+        const file = input.files[0];
+        if (!file) return;
+        _chatFile = file;
+        const prev  = document.getElementById('chatFilePreview');
+        const pname = document.getElementById('chatFilePreviewName');
+        const icon  = file.type.startsWith('image') ? '🖼️' : file.type.startsWith('video') ? '🎬' : '📎';
+        if (pname) pname.textContent = icon + ' ' + file.name;
+        if (prev)  prev.style.display = 'flex';
+    };
+    window.clearChatFile = function() {
+        _chatFile = null;
+        const fi = document.getElementById('chatFileInput');
+        if (fi) fi.value = '';
+        const prev = document.getElementById('chatFilePreview');
+        if (prev) prev.style.display = 'none';
+    };
+
+    /* ── สร้าง bubble ── */
+    function buildBubble(msg) {
+        const isMe  = msg.user_id == MY_USER_ID;
+        const sname = msg.sender_name || 'ไม่ระบุ';
+
+        /* ลบได้: เจ้าของข้อความลบของตัวเอง, admin ลบของทุกคน */
+        const canDel = isMe || IS_ADMIN;
+
+        let fileHtml = '';
+        if (msg.file_name) {
+            const src = msg.file_url || `/static/uploads/social/${msg.file_name}`;
+            if (msg.file_type && msg.file_type.startsWith('image')) {
+                fileHtml = `<img src="${src}" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin-top:6px;cursor:pointer;" loading="lazy" onclick="window.open('${src}','_blank')">`;
+            } else if (msg.file_type && msg.file_type.startsWith('video')) {
+                fileHtml = `<video src="${src}" controls style="width:100%;max-height:200px;border-radius:10px;margin-top:6px;"></video>`;
+            } else {
+                fileHtml = `<a href="${src}" target="_blank" style="font-size:12px;color:${isMe?'#bfdbfe':'#3b82f6'};font-weight:700;display:block;margin-top:4px;">📎 ${msg.file_name}</a>`;
+            }
+        }
+
+        const el = document.createElement('div');
+        el.dataset.msgId = msg.id;
+
+        if (isMe) {
+            /* ── ฝั่งขวา (ข้อความของตัวเอง) ── */
+            const hasText = !!msg.text;
+            const editBtn = hasText ? `<button onclick="editMsg(${msg.id},this)" title="แก้ไข"
+                style="background:none;border:none;cursor:pointer;padding:0 2px;color:rgba(255,255,255,0.45);font-size:10px;line-height:1;"
+                onmouseover="this.style.color='#93c5fd'" onmouseout="this.style.color='rgba(255,255,255,0.45)'">✏</button>` : '';
+            const delBtn = `<button onclick="deleteMsg(${msg.id},this)" title="ลบ"
+                style="background:none;border:none;cursor:pointer;padding:0 2px;color:rgba(255,255,255,0.45);font-size:11px;line-height:1;"
+                onmouseover="this.style.color='#fca5a5'" onmouseout="this.style.color='rgba(255,255,255,0.45)'">✕</button>`;
+            el.style.cssText = 'display:flex;justify-content:flex-end;padding-left:20%;';
+            el.innerHTML = `
+              <div style="max-width:100%;min-width:60px;">
+                <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-bottom:3px;">
+                  <span style="font-size:10px;color:#94a3b8;font-weight:500;">${msg.created_at}</span>
+                  ${editBtn}${delBtn}
+                </div>
+                <div style="background:linear-gradient(135deg,#3b82f6,#6366f1);border-radius:18px 4px 18px 18px;padding:10px 14px;box-shadow:0 2px 10px rgba(99,102,241,0.3);">
+                  ${msg.text ? `<p data-msg-text="${msg.id}" style="font-size:14px;color:white;font-weight:500;line-height:1.6;margin:0;white-space:pre-wrap;">${msg.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>` : ''}
+                  ${fileHtml}
+                </div>
+              </div>`;
+        } else {
+            /* ── ฝั่งซ้าย (ข้อความคนอื่น) ── */
+            const initials = sname[0]?.toUpperCase() || '?';
+            const color    = avatarColor(sname);
+            const delBtn   = IS_ADMIN
+                ? `<button onclick="deleteMsg(${msg.id},this)" title="ลบ"
+                    style="background:none;border:none;cursor:pointer;padding:0 2px;color:#cbd5e1;font-size:11px;line-height:1;"
+                    onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">✕</button>`
+                : '';
+            el.style.cssText = 'display:flex;gap:8px;align-items:flex-end;padding-right:20%;';
+            el.innerHTML = `
+              <div style="width:34px;height:34px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:white;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.12);">${initials}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:baseline;gap:5px;margin-bottom:3px;">
+                  <span style="font-size:12px;font-weight:800;color:#1e293b;">${sname}</span>
+                  <span style="font-size:10px;color:#94a3b8;font-weight:500;">${msg.created_at}</span>
+                  ${delBtn}
+                </div>
+                <div style="background:white;border-radius:4px 18px 18px 18px;padding:10px 14px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                  ${msg.text ? `<p style="font-size:14px;color:#334155;font-weight:500;line-height:1.6;margin:0;white-space:pre-wrap;">${msg.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>` : ''}
+                  ${fileHtml}
+                </div>
+              </div>`;
+        }
+        return el;
+    }
+
+    async function markChatRead(maxId) {
+        try {
+            await fetch('/api/mark_chat_read', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ max_id: maxId }),
+            });
+            _lastReadId = maxId;
+        } catch(e) {}
+    }
+
+    async function loadMessages(scrollBottom) {
+        try {
+            const res = await fetch('/api/get_messages');
+            if (!res.ok) return;
+            const payload  = await res.json();
+            /* รองรับทั้ง format เก่า (array) และใหม่ (object with msgs) */
+            const msgs     = Array.isArray(payload) ? payload : (payload.msgs || []);
+            const serverReadId = Array.isArray(payload) ? _lastReadId : (payload.last_read_id || 0);
+            if (serverReadId > _lastReadId) _lastReadId = serverReadId;
+
+            const feed    = document.getElementById('chatFeed');
+            const emptyEl = document.getElementById('chatEmpty');
+            if (!feed) return;
+
+            let added = false;
+            msgs.forEach(m => {
+                if (_knownIds.has(m.id)) return;
+                _knownIds.add(m.id);
+                const el = buildBubble(m);
+                feed.appendChild(el);
+                added = true;
+            });
+
+            if (emptyEl) emptyEl.style.display = msgs.length === 0 ? 'block' : 'none';
+
+            /* ถ้า panel เปิดอยู่ — mark read ทันที */
+            if (window._chatPanelOpen && msgs.length > 0) {
+                const maxId = Math.max(...msgs.map(m => Number(m.id)));
+                if (maxId > _lastReadId) markChatRead(maxId);
+            }
+
+            /* badge: นับข้อความที่ยังไม่อ่าน ไม่รวมของตัวเอง */
+            const badge    = document.getElementById('chatBadge');
+            const badgeNum = document.getElementById('chatBadgeNum');
+            if (!window._chatPanelOpen && badge && badgeNum) {
+                const unread = msgs.filter(m => Number(m.id) > _lastReadId && Number(m.user_id) !== MY_USER_ID).length;
+                if (unread > 0) {
+                    badge.style.display = 'flex';
+                    badgeNum.textContent = unread > 99 ? '99+' : unread;
+                } else {
+                    badge.style.display = 'none';
+                }
+            } else if (badge) {
+                badge.style.display = 'none';
+            }
+            if (scrollBottom || added) {
+                setTimeout(() => { feed.scrollTop = feed.scrollHeight; }, 60);
+            }
+        } catch(e) {}
+    }
+
+    window.sendChatMessage = async function() {
+        const input = document.getElementById('chatInput');
+        const btn   = document.getElementById('chatSendBtn');
+        const text  = (input?.value || '').trim();
+        if (!text && !_chatFile) return;
+        if (btn) btn.disabled = true;
+        try {
+            let res, data;
+            if (_chatFile) {
+                const fd = new FormData();
+                if (text) fd.append('text', text);
+                fd.append('file', _chatFile, _chatFile.name);
+                res  = await fetch('/api/send_message_file', { method: 'POST', body: fd });
+                data = await res.json();
+            } else {
+                res  = await fetch('/api/send_message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                data = await res.json();
+            }
+            if (data.success) {
+                if (input) input.value = '';
+                window.clearChatFile();
+                await loadMessages(true);
+            } else {
+                alert(data.error || 'เกิดข้อผิดพลาด');
+            }
+        } catch(e) { alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); }
+        finally { if (btn) btn.disabled = false; }
+    };
+
+    window.deleteMsg = async function(msgId, btnEl) {
+        if (!confirm('ลบข้อความนี้?')) return;
+        try {
+            const res  = await fetch(`/api/delete_message/${msgId}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                const row = btnEl.closest('[data-msg-id]');
+                if (row) row.remove();
+                _knownIds.delete(msgId);
+                const feed = document.getElementById('chatFeed');
+                if (feed && feed.querySelectorAll('[data-msg-id]').length === 0) {
+                    const e = document.getElementById('chatEmpty');
+                    if (e) e.style.display = 'block';
+                }
+            }
+        } catch(e) {}
+    };
+
+    window.editMsg = function(msgId, btnEl) {
+        const pEl = document.querySelector(`[data-msg-text="${msgId}"]`);
+        if (!pEl) return;
+        const currentText = pEl.textContent;
+        const bubble = pEl.closest('div[style*="gradient"]') || pEl.parentElement;
+        /* สร้าง inline editor */
+        pEl.style.display = 'none';
+        const wrap = document.createElement('div');
+        wrap.id = `editWrap_${msgId}`;
+        wrap.innerHTML = `
+          <textarea id="editInput_${msgId}" style="width:100%;font-size:14px;color:#1e293b;border-radius:10px;padding:6px 10px;border:1px solid #93c5fd;outline:none;resize:none;font-weight:500;min-height:56px;">${currentText.replace(/&lt;/g,'<').replace(/&gt;/g,'>')}</textarea>
+          <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;">
+            <button onclick="saveEdit(${msgId})" style="background:#3b82f6;color:white;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:800;cursor:pointer;">บันทึก</button>
+            <button onclick="cancelEdit(${msgId})" style="background:#e2e8f0;color:#475569;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;">ยกเลิก</button>
+          </div>`;
+        bubble.appendChild(wrap);
+        document.getElementById(`editInput_${msgId}`)?.focus();
+    };
+
+    window.cancelEdit = function(msgId) {
+        const pEl = document.querySelector(`[data-msg-text="${msgId}"]`);
+        const wrap = document.getElementById(`editWrap_${msgId}`);
+        if (pEl) pEl.style.display = '';
+        if (wrap) wrap.remove();
+    };
+
+    window.saveEdit = async function(msgId) {
+        const input = document.getElementById(`editInput_${msgId}`);
+        const newText = (input?.value || '').trim();
+        if (!newText) return;
+        try {
+            const res  = await fetch(`/api/edit_message/${msgId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: newText }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                const pEl = document.querySelector(`[data-msg-text="${msgId}"]`);
+                const wrap = document.getElementById(`editWrap_${msgId}`);
+                if (pEl) { pEl.innerHTML = newText.replace(/</g,'&lt;').replace(/>/g,'&gt;'); pEl.style.display = ''; }
+                if (wrap) wrap.remove();
+            }
+        } catch(e) {}
+    };
+
+    loadMessages(true);
+    setInterval(() => loadMessages(false), 5000);
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ app_settings.app_name }} Anti-Aging</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#064e3b">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="{{ app_settings.app_name }}">
+    <link rel="apple-touch-icon" href="/app-icon">
+    <link rel="icon" type="image/png" href="/app-icon">
+    <script src="https://cdn.tailwindcss.com"></script>
+    {% set font_map = {'Prompt': 'Prompt', 'Sarabun': 'Sarabun', 'Kanit': 'Kanit', 'Noto Sans Thai': 'Noto+Sans+Thai', 'Inter': 'Inter', 'Mitr': 'Mitr', 'Chakra Petch': 'Chakra+Petch'} %}
+    {% set gfont = font_map.get(app_settings.font_name, 'Prompt') %}
+    <link href="https://fonts.googleapis.com/css2?family={{ gfont }}:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: '{{ app_settings.font_name }}', 'Prompt', 'Inter', sans-serif; background: #F5F3EE; }
+        .font-display { font-family: 'Inter', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes fade-in-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in-up { animation: fade-in-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .delay-1 { animation-delay: 0.08s; opacity:0; }
+        .delay-2 { animation-delay: 0.16s; opacity:0; }
+        .admin-glass { background: rgba(255,255,255,0.95); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.6); }
+        .admin-shadow { box-shadow: 0 4px 24px rgba(0,0,0,0.04); }
+        .card-shadow { box-shadow: 0 2px 16px rgba(0,0,0,0.05), 0 1px 4px rgba(0,0,0,0.04); }
+        .card-purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-orange { background: linear-gradient(135deg, #f97316 0%, #f59e0b 100%); }
+        .card-rose   { background: linear-gradient(135deg, #f43f5e 0%, #ec4899 100%); }
+        .card-sky    { background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%); }
+        .card-teal   { background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%); }
+        .glow-emerald { box-shadow: 0 8px 24px rgba(16,185,129,0.25); }
+        .glow-purple  { box-shadow: 0 8px 24px rgba(102,126,234,0.3); }
+        .glow-rose    { box-shadow: 0 8px 24px rgba(244,63,94,0.25); }
+        #smartNav { transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1); }
+        .nav-hidden { transform: translateY(120%); opacity: 0; pointer-events: none; }
+        .nav-visible { transform: translateY(0); opacity: 1; pointer-events: auto; }
+        .nav-btn { touch-action: manipulation; -webkit-tap-highlight-color: transparent; cursor: pointer; transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .nav-btn:active { transform: scale(0.88); }
+        #smartNav { touch-action: manipulation; }
+        .nav-btn .nav-icon-wrap { width: 36px; height: 28px; border-radius: 10px; display: flex; align-items: center; justify-content: center; transition: all 0.25s ease; }
+        .nav-btn .nav-label { font-size: 7.5px; font-weight: 800; letter-spacing: 0.02em; margin-top: 2px; transition: all 0.2s; }
+        .nav-home.active-nav .nav-icon-wrap  { background: linear-gradient(135deg, #6366f1, #8b5cf6); box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
+        .nav-home.active-nav .nav-label      { color: #6366f1; }
+        .nav-home.active-nav i               { color: white !important; }
+        .nav-edu.active-nav .nav-icon-wrap   { background: linear-gradient(135deg, #0ea5e9, #6366f1); box-shadow: 0 4px 12px rgba(14,165,233,0.4); }
+        .nav-edu.active-nav .nav-label       { color: #0ea5e9; }
+        .nav-edu.active-nav i                { color: white !important; }
+        .nav-food.active-nav .nav-icon-wrap  { background: linear-gradient(135deg, #f97316, #f59e0b); box-shadow: 0 4px 12px rgba(249,115,22,0.4); }
+        .nav-food.active-nav .nav-label      { color: #f97316; }
+        .nav-food.active-nav i               { color: white !important; }
+        .nav-ex.active-nav .nav-icon-wrap    { background: linear-gradient(135deg, #f43f5e, #ec4899); box-shadow: 0 4px 12px rgba(244,63,94,0.4); }
+        .nav-ex.active-nav .nav-label        { color: #f43f5e; }
+        .nav-ex.active-nav i                 { color: white !important; }
+        .nav-task.active-nav .nav-icon-wrap  { background: linear-gradient(135deg, #10b981, #06d6a0); box-shadow: 0 4px 12px rgba(16,185,129,0.4); }
+        .nav-task.active-nav .nav-label      { color: #10b981; }
+        .nav-task.active-nav i               { color: white !important; }
+        .nav-btn i { color: #94a3b8; transition: color 0.2s; }
+        /* Desktop sidebar active states */
+        .sidebar-user-item.active-sidebar { background: linear-gradient(135deg,#ecfdf5,#d1fae5); color: #065f46 !important; border: 1px solid #a7f3d0; }
+        .sidebar-user-item.active-sidebar .sidebar-icon-wrap { background: linear-gradient(135deg,#10b981,#06b6d4); }
+        .sidebar-user-item.active-sidebar .sidebar-icon-wrap i { color: white !important; }
+        .sidebar-user-item.active-sidebar i { color: #065f46; }
+        input, select, textarea { font-family: '{{ app_settings.font_name }}', 'Prompt', 'Inter', sans-serif; }
+        .lang-th .text-en { display: none; }
+        .lang-en .text-th { display: none; }
+        body.dark-mode { background: #0f172a !important; }
+        body.dark-mode .admin-glass { background: rgba(30,41,59,0.95) !important; border-color: rgba(255,255,255,0.08) !important; }
+        body.dark-mode .bg-\[\#F5F3EE\], body.dark-mode .bg-white { background: #1e293b !important; }
+        body.dark-mode .bg-slate-50 { background: #0f172a !important; }
+        body.dark-mode .bg-slate-100 { background: #1e293b !important; }
+        body.dark-mode .text-slate-900 { color: #f1f5f9 !important; }
+        body.dark-mode .text-slate-800 { color: #e2e8f0 !important; }
+        body.dark-mode .text-slate-700 { color: #cbd5e1 !important; }
+        body.dark-mode .text-slate-600 { color: #94a3b8 !important; }
+        body.dark-mode .text-slate-500 { color: #64748b !important; }
+        body.dark-mode .border-slate-100, body.dark-mode .border-slate-200 { border-color: #334155 !important; }
+        body.dark-mode nav.bg-white\/95 { background: rgba(30,41,59,0.97) !important; border-color: #334155 !important; }
+        body.dark-mode .shadow-sm, body.dark-mode .shadow-\[0_8px_30px_rgb\(0\,0\,0\,0\.04\)\] { box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important; }
+        body.dark-mode input, body.dark-mode select, body.dark-mode textarea { background: #0f172a !important; color: #f1f5f9 !important; border-color: #334155 !important; }
+        /* Profile Modal — rendered at body level so fixed positioning works correctly */
+        #profileModal {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        #profileModal.is-open { display: flex; }
+        @media (max-width: 640px) {
+            .mobile-mini-card { min-height: 86px !important; padding: 0.85rem !important; }
+            .mobile-mini-title { font-size: 0.72rem !important; line-height: 1rem !important; }
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-[#F5F3EE] selection:bg-emerald-200/60 lang-th" id="appBody">
+    {% if not session.get('user_id') %}
+        {% block content %}{% endblock %}
+    {% else %}
+
+    <!-- Profile Modal — at body level so fixed positioning works on all browsers -->
+    <div id="profileModal" aria-modal="true" role="dialog">
+        <div id="profileBackdrop" onclick="closeProfileModal()" class="absolute inset-0 bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300"></div>
+        <div id="profileContent" class="bg-white w-full max-w-sm rounded-[24px] p-6 transform scale-95 opacity-0 transition-all duration-300 relative z-10 shadow-2xl">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i data-lucide="user" class="w-8 h-8 text-slate-400"></i>
+                </div>
+                <h3 class="font-black text-slate-900 text-lg">{{ session.get('name', 'User') }}</h3>
+                <p class="text-xs text-emerald-600 font-bold uppercase tracking-widest mt-1">{{ 'Administrator' if session.get('role') in ['admin', 'researcher'] else 'Program Member' }}</p>
+            </div>
+            <div class="space-y-3">
+                {% if session.get('role') == 'user' %}
+                <a href="/settings" class="flex items-center justify-center gap-2 bg-slate-50 hover:bg-slate-100 rounded-[14px] px-4 py-3 text-slate-700 font-bold transition-colors"><i data-lucide="settings" class="w-4 h-4"></i> ตั้งค่าโปรไฟล์</a>
+                {% endif %}
+                <a href="/logout" class="flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 rounded-[14px] px-4 py-3 text-white font-black transition-colors shadow-md shadow-rose-500/20"><i data-lucide="log-out" class="w-4 h-4"></i> ออกจากระบบ</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="relative w-full mx-auto bg-[#F5F3EE] shadow-2xl {{ 'max-w-6xl' if session.get('role') in ['admin', 'researcher'] else 'lg:flex lg:min-h-screen' }}">
+
+        {% if session.get('role') == 'user' %}
+        <!-- ── Desktop Sidebar (lg+ only) ──────────────────────────────── -->
+        <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:shrink-0 lg:sticky lg:top-0 lg:h-screen bg-white border-r border-slate-100 shadow-sm z-[200]" style="min-height:100dvh">
+            <!-- Logo + App name -->
+            <div class="px-5 pt-6 pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    {% if app_settings.logo_path %}
+                    <img src="{{ app_settings.logo_path }}" alt="Logo" class="w-10 h-10 rounded-[14px] object-cover shadow-md shrink-0">
+                    {% else %}
+                    <div class="w-10 h-10 rounded-[14px] bg-[#064e3b] flex items-center justify-center shadow-md shrink-0">
+                        <i data-lucide="dna" class="w-5 h-5 text-white"></i>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <h1 class="text-[15px] font-black tracking-tight text-slate-900 leading-none">{{ app_settings.app_name }}<span class="text-emerald-500">.</span></h1>
+                        <p class="text-[10px] font-bold text-slate-400 mt-0.5">Anti-Aging Program</p>
+                    </div>
+                </div>
+            </div>
+            <!-- User info + points -->
+            <div class="px-4 py-3 mx-3 mt-3 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                        <i data-lucide="user" class="w-4 h-4 text-emerald-600"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[12px] font-black text-slate-800 truncate">{{ session.get('name','') }}</p>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="flex items-center gap-1">
+                                <i data-lucide="zap" class="w-3 h-3 text-amber-500"></i>
+                                <span class="text-[11px] font-black text-amber-600">{{ points | default(0) }} แต้ม</span>
+                            </span>
+                            {% set rank_num = my_rank.rank if my_rank is mapping else my_rank %}
+                            {% if rank_num and rank_num > 0 %}
+                            <span class="flex items-center gap-1">
+                                <i data-lucide="trophy" class="w-3 h-3 text-violet-500"></i>
+                                <span class="text-[11px] font-black text-violet-600">#{{ rank_num }}</span>
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Nav items -->
+            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                {% set nav_items = [
+                    ('/dashboard',  'layout-dashboard', 'หน้าหลัก',      'nav-home'),
+                    ('/education',  'book-open',        'ความรู้',         'nav-edu'),
+                    ('/food',       'utensils',         'อาหารและโภชนาการ','nav-food'),
+                    ('/exercise',   'activity',         'ออกกำลังกาย',    'nav-ex'),
+                    ('/health',     'target',           'ภารกิจสุขภาพ',   'nav-task'),
+                    ('/leaderboard','trophy',           'อันดับคะแนน',    ''),
+                    ('/my_labs',    'flask-conical',    'ผลแล็บ',         ''),
+                    ('/settings',   'settings',         'ตั้งค่าโปรไฟล์', ''),
+                ] %}
+                {% for href, icon, label, cls in nav_items %}
+                <a href="{{ href }}" class="sidebar-user-item {{ cls }} flex items-center gap-3 px-3 py-2.5 rounded-[14px] text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all group font-bold text-[13px]">
+                    <div class="sidebar-icon-wrap w-8 h-8 rounded-xl flex items-center justify-center bg-slate-100 group-hover:bg-slate-200 transition-all shrink-0">
+                        <i data-lucide="{{ icon }}" class="w-4 h-4"></i>
+                    </div>
+                    <span>{{ label }}</span>
+                </a>
+                {% endfor %}
+            </nav>
+            <!-- Logout at bottom -->
+            <div class="px-3 pb-5 pt-2 border-t border-slate-100 mt-auto">
+                <a href="/logout" class="flex items-center gap-3 px-3 py-2.5 rounded-[14px] text-rose-500 hover:bg-rose-50 transition-all font-bold text-[13px]">
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center bg-rose-50 shrink-0">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                    </div>
+                    <span>ออกจากระบบ</span>
+                </a>
+            </div>
+        </aside>
+        {% endif %}
+
+        <!-- ── Main content area ──────────────────────────────────────── -->
+        <div class="{{ 'flex-1 flex flex-col min-w-0' if session.get('role') == 'user' else '' }}">
+
+        <header class="admin-glass sticky top-0 z-[250] px-4 py-3 flex justify-between items-center border-b border-black/5 shadow-sm">
+            <div class="flex items-center gap-3 min-w-0">
+                {% if app_settings.logo_path %}
+                <img src="{{ app_settings.logo_path }}" alt="Logo" class="w-9 h-9 rounded-[12px] object-cover shadow-md shrink-0 lg:hidden">
+                {% else %}
+                <div class="w-9 h-9 rounded-[12px] bg-[#064e3b] flex items-center justify-center shadow-md shrink-0 lg:hidden">
+                    <i data-lucide="dna" class="w-[18px] h-[18px] text-white"></i>
+                </div>
+                {% endif %}
+                <div class="min-w-0">
+                    <h1 class="text-[16px] font-black tracking-tight text-slate-900 leading-none truncate lg:hidden">
+                        {{ app_settings.app_name }}<span class="text-emerald-500">.</span>{{ ' Admin' if session.get('role') in ['admin', 'researcher'] else '' }}
+                    </h1>
+                    {% if session.get('role') == 'user' %}
+                    <h1 class="hidden lg:block text-[18px] font-black tracking-tight text-slate-900 leading-none">
+                        {% set page_titles = {'/dashboard':'หน้าหลัก', '/education':'ความรู้', '/food':'อาหารและโภชนาการ', '/exercise':'ออกกำลังกาย', '/health':'ภารกิจสุขภาพ', '/leaderboard':'อันดับคะแนน', '/my_labs':'ผลแล็บ', '/lab':'ผลแล็บ', '/settings':'ตั้งค่าโปรไฟล์', '/questionnaire':'แบบสอบถาม'} %}
+                        {% set current_title = page_titles.get(request.path, app_settings.app_name) %}
+                        {{ current_title }}<span class="text-emerald-500">.</span>
+                    </h1>
+                    {% else %}
+                    <h1 class="hidden lg:block text-[16px] font-black tracking-tight text-slate-900 leading-none truncate">
+                        {{ app_settings.app_name }}<span class="text-emerald-500">.</span>{{ ' Admin' if session.get('role') in ['admin', 'researcher'] else '' }}
+                    </h1>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                {% if session.get('role') == 'user' %}
+                <div class="flex items-center gap-1 bg-amber-50 border border-amber-200/70 px-2 py-1.5 rounded-xl lg:hidden">
+                    <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500 fill-amber-400"></i>
+                    <span class="text-xs font-black text-amber-700">{{ points | default(0) }}</span>
+                </div>
+                <a href="/leaderboard" class="flex items-center gap-1 bg-violet-50 border border-violet-200/70 px-2 py-1.5 rounded-xl hover:bg-violet-100 transition-all lg:hidden" title="ดูอันดับคะแนนสะสม">
+                    <i data-lucide="trophy" class="w-3.5 h-3.5 text-violet-600"></i>
+                    {% set rank_num = my_rank.rank if my_rank is mapping else my_rank %}
+                    {% if rank_num and rank_num > 0 %}
+                    <span class="text-xs font-black text-violet-700">#{{ rank_num }}</span>
+                    {% else %}
+                    <span class="text-xs font-black text-violet-700">—</span>
+                    {% endif %}
+                </a>
+                {% endif %}
+                {% if session.get('role') in ['admin', 'researcher'] %}
+                <a href="/admin/branding" class="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-[#064e3b] transition-all" title="ตั้งค่าโลโก้และแบรนด์">
+                    <i data-lucide="palette" class="w-4 h-4"></i>
+                </a>
+                {% endif %}
+                <button onclick="openProfileModal()" class="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-[#064e3b] transition-all">
+                    <i data-lucide="user" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="overflow-x-hidden min-h-[calc(100dvh-56px)] pb-32 lg:pb-8">
+        {% block dashboard_content %}{% endblock %}
+        </div>
+
+        {% if session.get('role') == 'user' %}
+        <div id="smartNav" class="fixed bottom-4 left-0 right-0 flex justify-center z-[100] px-4 nav-visible lg:hidden">
+            <nav class="bg-white/95 backdrop-blur-xl border border-slate-100 shadow-2xl rounded-[26px] px-3 py-2.5 flex justify-between items-center w-full max-w-xl" style="box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);">
+                <a href="/dashboard" class="nav-btn nav-home flex flex-col items-center justify-center w-[58px] pt-0.5">
+                    <div class="nav-icon-wrap"><i data-lucide="layout-dashboard" class="w-[17px] h-[17px]"></i></div><span class="nav-label text-slate-400">หน้าหลัก</span>
+                </a>
+                <a href="/education" class="nav-btn nav-edu flex flex-col items-center justify-center w-[58px] pt-0.5">
+                    <div class="nav-icon-wrap"><i data-lucide="book-open" class="w-[17px] h-[17px]"></i></div><span class="nav-label text-slate-400 text-center leading-tight">ความรู้</span>
+                </a>
+                <a href="/food" class="nav-btn nav-food flex flex-col items-center justify-center w-[58px] pt-0.5">
+                    <div class="nav-icon-wrap"><i data-lucide="utensils" class="w-[17px] h-[17px]"></i></div><span class="nav-label text-slate-400">อาหาร</span>
+                </a>
+                <a href="/exercise" class="nav-btn nav-ex flex flex-col items-center justify-center w-[58px] pt-0.5">
+                    <div class="nav-icon-wrap"><i data-lucide="activity" class="w-[17px] h-[17px]"></i></div><span class="nav-label text-slate-400">ออกกำลัง</span>
+                </a>
+                <a href="/health" class="nav-btn nav-task flex flex-col items-center justify-center w-[58px] pt-0.5">
+                    <div class="nav-icon-wrap"><i data-lucide="target" class="w-[17px] h-[17px]"></i></div><span class="nav-label text-slate-400">ภารกิจ</span>
+                </a>
+            </nav>
+        </div>
+        {% endif %}
+
+        </div><!-- end main content -->
+    </div>
+    {% block body_extras %}{% endblock %}
+    {% endif %}
+
+    <script>
+        lucide.createIcons();
+        function toggleLanguage() {
+            const body = document.getElementById('appBody');
+            const btnText = document.getElementById('langText');
+            if (body.classList.contains('lang-th')) {
+                body.classList.replace('lang-th', 'lang-en');
+                if(btnText) btnText.innerText = 'TH';
+                localStorage.setItem('preferredLang', 'en');
+            } else {
+                body.classList.replace('lang-en', 'lang-th');
+                if(btnText) btnText.innerText = 'EN';
+                localStorage.setItem('preferredLang', 'th');
+            }
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            const body = document.getElementById('appBody');
+            if(localStorage.getItem('preferredLang') === 'en') {
+                body.classList.replace('lang-th', 'lang-en');
+                const btnText = document.getElementById('langText');
+                if(btnText) btnText.innerText = 'TH';
+            }
+            if(localStorage.getItem('preferredTheme') === 'dark') {
+                body.classList.add('dark-mode');
+            }
+        });
+        const path = window.location.pathname;
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            const href = btn.getAttribute('href');
+            const isActive = href === path || (path === '/' && href === '/dashboard');
+            if (isActive) btn.classList.add('active-nav');
+        });
+        document.querySelectorAll('.sidebar-user-item').forEach(item => {
+            const href = item.getAttribute('href');
+            if (!href) return;
+            const hrefPath = href.split('?')[0];
+            const isActive = hrefPath === path || (path === '/' && hrefPath === '/dashboard');
+            if (isActive) item.classList.add('active-sidebar');
+        });
+        const bottomNav = document.getElementById('smartNav');
+        let navTimer;
+        function showNav() {
+            if (!bottomNav) return;
+            bottomNav.classList.remove('nav-hidden');
+            bottomNav.classList.add('nav-visible');
+            clearTimeout(navTimer);
+            navTimer = setTimeout(() => {
+                bottomNav.classList.remove('nav-visible');
+                bottomNav.classList.add('nav-hidden');
+            }, 3500);
+        }
+        window.addEventListener('scroll', showNav, { passive: true });
+        window.addEventListener('touchstart', showNav, { passive: true });
+        window.addEventListener('mousedown', showNav, { passive: true });
+        if (bottomNav) showNav();
+
+        function openProfileModal() {
+            const modal = document.getElementById('profileModal');
+            if(!modal) return;
+            modal.classList.add('is-open');
+            setTimeout(() => {
+                document.getElementById('profileBackdrop').classList.add('opacity-100');
+                const content = document.getElementById('profileContent');
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+        function closeProfileModal() {
+            const modal = document.getElementById('profileModal');
+            if(!modal) return;
+            document.getElementById('profileBackdrop').classList.remove('opacity-100');
+            const content = document.getElementById('profileContent');
+            content.classList.add('scale-95', 'opacity-0');
+            content.classList.remove('scale-100', 'opacity-100');
+            setTimeout(() => { modal.classList.remove('is-open'); }, 300);
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeProfileModal();
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+            });
+        }
+        (function startHeartbeat() {
+            const send = () => fetch('/api/heartbeat', { method: 'POST' }).catch(() => {});
+            send();
+            setInterval(send, 15000);
+        })();
+
+        /* ── Notification polling: ดึง notification ทุก 10 วินาที (สำหรับ user เท่านั้น) ── */
+        {% if session.get('role') == 'user' %}
+        (function startNotificationPolling() {
+            function showToast(msg, type) {
+                const colors = {
+                    certificate: { bg: 'bg-amber-50', border: 'border-amber-300', icon: '📜', text: 'text-amber-800', link: '/my_certificates' },
+                    admin_nudge: { bg: 'bg-emerald-50', border: 'border-emerald-300', icon: '💬', text: 'text-emerald-800', link: null },
+                    default:     { bg: 'bg-blue-50',   border: 'border-blue-300',   icon: '🔔', text: 'text-blue-800',   link: null }
+                };
+                const cfg = colors[type] || colors.default;
+                const id  = 'toast_' + Date.now();
+                const el  = document.createElement('div');
+                el.id = id;
+                el.className = `fixed top-4 left-1/2 -translate-x-1/2 z-[9999] max-w-[88vw] w-[340px] ${cfg.bg} border ${cfg.border} rounded-2xl shadow-xl px-4 py-3.5 flex items-start gap-3 transition-all duration-500 opacity-0 -translate-y-2 cursor-pointer select-none`;
+                el.innerHTML = `
+                    <span class="text-xl shrink-0 mt-0.5">${cfg.icon}</span>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-black ${cfg.text} uppercase tracking-widest mb-0.5">${type === 'certificate' ? 'เกียรติบัตรใหม่' : 'ข้อความจากทีมงาน'}</p>
+                        <p class="text-sm font-bold text-slate-700 leading-snug">${msg}</p>
+                    </div>
+                    <button onclick="document.getElementById('${id}').remove()" class="shrink-0 text-slate-400 hover:text-slate-600 mt-0.5">✕</button>`;
+                if (cfg.link) el.addEventListener('click', (e) => { if (e.target.tagName !== 'BUTTON') window.location.href = cfg.link; });
+                document.body.appendChild(el);
+                requestAnimationFrame(() => {
+                    el.classList.remove('opacity-0', '-translate-y-2');
+                    el.classList.add('opacity-100', 'translate-y-0');
+                });
+                setTimeout(() => {
+                    el.classList.add('opacity-0', '-translate-y-2');
+                    setTimeout(() => el.remove(), 500);
+                }, 6000);
+            }
+
+            async function pollNotifications() {
+                try {
+                    const res = await fetch('/api/get_notifications');
+                    if (!res.ok) return;
+                    const items = await res.json();
+                    items.forEach((n, i) => {
+                        setTimeout(() => showToast(n.message, n.type), i * 700);
+                    });
+                } catch(e) {}
+            }
+
+            pollNotifications();
+            setInterval(pollNotifications, 10000);
+        })();
+        {% endif %}
+
+        /* ── Fetch interceptor: add X-Auth-Token header to all same-origin requests ── */
+        (function patchFetch() {
+            const _origFetch = window.fetch;
+            window.fetch = function(input, init) {
+                const token = localStorage.getItem('auth_token');
+                if (!token) return _origFetch(input, init);
+                try {
+                    const url = typeof input === 'string' ? input : input.url;
+                    if (url && (!url.startsWith('http') || new URL(url, location.origin).origin === location.origin)) {
+                        init = init || {};
+                        init.headers = Object.assign({}, init.headers || {}, {'X-Auth-Token': token});
+                    }
+                } catch(e) {}
+                return _origFetch(input, init);
+            };
+        })();
+
+        /* ── Token relay: inject ?_t= into all internal links/forms so sessions
+               survive even when cookies are blocked (Replit iframe) ── */
+        (function injectAuthToken() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) return;
+            const origin = window.location.origin;
+            function addToken(url) {
+                try {
+                    const u = new URL(url, origin);
+                    if (u.origin !== origin) return url;
+                    if (u.pathname.startsWith('/static') || u.pathname.startsWith('/api')) return url;
+                    u.searchParams.set('_t', token);
+                    return u.pathname + u.search + u.hash;
+                } catch (e) { return url; }
+            }
+            function patch() {
+                document.querySelectorAll('a[href]').forEach(a => {
+                    const h = a.getAttribute('href');
+                    if (h && !h.startsWith('#') && !h.startsWith('javascript') && !h.startsWith('mailto')) {
+                        a.setAttribute('href', addToken(h));
+                    }
+                });
+                document.querySelectorAll('form').forEach(form => {
+                    if (form.querySelector('input[name="_t"]')) return;
+                    const inp = document.createElement('input');
+                    inp.type = 'hidden'; inp.name = '_t'; inp.value = token;
+                    form.appendChild(inp);
+                });
+            }
+            patch();
+            const obs = new MutationObserver(patch);
+            obs.observe(document.body, { childList: true, subtree: true });
+        })();
+    </script>
+</body>
+</html>

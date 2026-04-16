@@ -1,0 +1,2070 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel — {{ app_settings.app_name }}</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  * { font-family: 'Prompt', sans-serif; }
+  body { background: #F1F5F9; }
+  /* ── Desktop: sidebar sticky, main scrolls independently ── */
+  .sidebar { width: 260px; background: #0F172A; flex-shrink: 0; }
+  .sidebar-item { transition: all 0.15s ease; border-radius: 10px; }
+  .sidebar-item:hover { background: rgba(255,255,255,0.07); }
+  .sidebar-item.active { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.2); }
+  .sidebar-item.active span { color: #34d399; }
+  .sidebar-item.active svg { color: #34d399; }
+  .stat-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.08); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .action-btn { transition: all 0.15s ease; }
+  .action-btn:hover { transform: translateY(-1px); }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+  /* ── Mobile sidebar drawer ── */
+  .mobile-menu-overlay { display: none; }
+  @media (max-width: 768px) {
+    .sidebar {
+      position: fixed; left: -270px; top: 0; z-index: 50;
+      transition: left 0.3s ease; height: 100dvh; overflow-y: auto;
+    }
+    .sidebar.open { left: 0; box-shadow: 4px 0 24px rgba(0,0,0,0.3); }
+    .mobile-menu-overlay { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+    .mobile-menu-overlay.show { opacity: 1; pointer-events: all; }
+  }
+  /* ── Desktop: sidebar is sticky, not fixed ── */
+  @media (min-width: 769px) {
+    .sidebar { position: sticky; top: 0; height: 100dvh; overflow-y: auto; }
+  }
+  .font-preview { font-family: var(--preview-font, 'Prompt'), sans-serif; }
+  /* ── Mobile content helpers ── */
+  @media (max-width: 640px) {
+    .admin-content-pad { padding: 1rem !important; }
+    .admin-page-title { font-size: 1rem !important; }
+  }
+</style>
+</head>
+<body class="flex h-dvh overflow-hidden">
+
+<!-- Mobile overlay -->
+<div class="mobile-menu-overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar flex flex-col py-6 px-4" id="sidebar">
+  <div class="flex items-center gap-3 mb-8 px-2">
+    {% if app_settings.logo_path %}
+    <img src="{{ app_settings.logo_path }}" alt="Logo" class="w-9 h-9 rounded-xl object-cover">
+    {% else %}
+    <div class="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center">
+      <i data-lucide="dna" class="w-5 h-5 text-white"></i>
+    </div>
+    {% endif %}
+    <div>
+      <p class="font-black text-white text-base leading-none">{{ app_settings.app_name }}</p>
+      <p class="text-[9px] text-emerald-400/70 font-bold uppercase tracking-widest">Admin Panel</p>
+    </div>
+  </div>
+
+  <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest px-2 mb-2">เมนูหลัก</p>
+  <nav class="space-y-1 flex-1">
+    <button onclick="switchTab('overview')" id="tab-btn-overview"
+      class="sidebar-item active w-full flex items-center gap-3 px-3 py-2.5 text-left">
+      <i data-lucide="layout-dashboard" class="w-4.5 h-4.5 text-slate-400 w-5 h-5"></i>
+      <span class="text-slate-300 text-sm font-semibold">ภาพรวม</span>
+    </button>
+    <button onclick="switchTab('users')" id="tab-btn-users"
+      class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-left">
+      <i data-lucide="users" class="w-5 h-5 text-slate-400"></i>
+      <span class="text-slate-300 text-sm font-semibold">จัดการผู้ใช้</span>
+      <span class="ml-auto bg-emerald-500/20 text-emerald-400 text-[10px] font-black px-2 py-0.5 rounded-full">{{ stats.total_users }}</span>
+    </button>
+    <button onclick="switchTab('content')" id="tab-btn-content"
+      class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-left">
+      <i data-lucide="book-open" class="w-5 h-5 text-slate-400"></i>
+      <span class="text-slate-300 text-sm font-semibold">คลังความรู้</span>
+      <span class="ml-auto bg-blue-500/20 text-blue-400 text-[10px] font-black px-2 py-0.5 rounded-full">{{ stats.total_materials }}</span>
+    </button>
+    <button onclick="switchTab('branding')" id="tab-btn-branding"
+      class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-left">
+      <i data-lucide="palette" class="w-5 h-5 text-slate-400"></i>
+      <span class="text-slate-300 text-sm font-semibold">ตั้งค่าแบรนด์</span>
+    </button>
+    <button onclick="switchTab('questions')" id="tab-btn-questions"
+      class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-left">
+      <i data-lucide="clipboard-edit" class="w-5 h-5 text-slate-400"></i>
+      <span class="text-slate-300 text-sm font-semibold">แก้ไขคำถาม</span>
+    </button>
+    <button onclick="switchTab('ranking')" id="tab-btn-ranking"
+      class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-left">
+      <i data-lucide="trophy" class="w-5 h-5 text-slate-400"></i>
+      <span class="text-slate-300 text-sm font-semibold">อันดับคะแนน</span>
+    </button>
+    <button onclick="switchTab('chat')" id="tab-btn-chat"
+      class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 text-left">
+      <i data-lucide="message-circle" class="w-5 h-5 text-slate-400"></i>
+      <span class="text-slate-300 text-sm font-semibold">แชทชุมชน</span>
+      <span id="adminChatBadge" class="ml-auto bg-rose-500/20 text-rose-400 text-[10px] font-black px-2 py-0.5 rounded-full hidden">0</span>
+    </button>
+  </nav>
+
+  <div class="mt-auto border-t border-white/10 pt-4 px-2">
+    <div class="flex items-center gap-3 mb-3">
+      <div class="w-8 h-8 bg-emerald-600/30 rounded-full flex items-center justify-center">
+        <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+      </div>
+      <div>
+        <p class="text-xs font-bold text-white leading-none">{{ session_name }}</p>
+        <p class="text-[10px] text-slate-500 capitalize">{{ session_role }}</p>
+      </div>
+    </div>
+    <a href="/dashboard" class="flex items-center gap-2 text-slate-500 hover:text-slate-300 text-xs font-semibold transition-colors py-1">
+      <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> กลับหน้าผู้ใช้
+    </a>
+    <a href="/logout" class="flex items-center gap-2 text-red-500/70 hover:text-red-400 text-xs font-semibold transition-colors py-1 mt-1">
+      <i data-lucide="log-out" class="w-3.5 h-3.5"></i> ออกจากระบบ
+    </a>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="flex-1 flex flex-col overflow-y-auto overflow-x-hidden" id="mainContent">
+
+  <!-- Top Bar -->
+  <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+    <div class="flex items-center gap-4">
+      <button class="md:hidden p-2 rounded-xl bg-slate-100 text-slate-600" onclick="openSidebar()">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
+      <div>
+        <h1 class="text-lg font-black text-slate-900" id="pageTitle">ภาพรวมระบบ</h1>
+        <p class="text-[11px] text-slate-400 font-medium hidden sm:block">{{ now }}</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="hidden sm:flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs font-black px-3 py-1.5 rounded-full border border-emerald-200">
+        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> ระบบออนไลน์
+      </span>
+    </div>
+  </header>
+
+  <!-- Alert -->
+  {% if flash_message %}
+  <div class="mx-6 mt-4 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm font-bold text-emerald-700 flex items-center gap-2">
+    <i data-lucide="check-circle" class="w-4 h-4"></i> {{ flash_message }}
+  </div>
+  {% endif %}
+
+  <div class="flex-1 p-4 sm:p-6 space-y-6">
+
+    <!-- ============================================================ -->
+    <!-- TAB: OVERVIEW -->
+    <!-- ============================================================ -->
+    <div id="tab-overview" class="tab-panel active space-y-6">
+
+      <!-- Stat Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="stat-card bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+              <i data-lucide="users" class="w-5 h-5 text-blue-500"></i>
+            </div>
+            <span class="text-xs font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">ทั้งหมด</span>
+          </div>
+          <p class="text-3xl font-black text-slate-900 tabular-nums">{{ stats.total_users }}</p>
+          <p class="text-xs text-slate-500 font-medium mt-0.5">ผู้เข้าร่วมโครงการ</p>
+        </div>
+
+        <div class="stat-card bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+              <i data-lucide="activity" class="w-5 h-5 text-emerald-500"></i>
+            </div>
+            <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">7 วัน</span>
+          </div>
+          <p class="text-3xl font-black text-slate-900 tabular-nums">{{ stats.active_users }}</p>
+          <p class="text-xs text-slate-500 font-medium mt-0.5">ผู้ใช้งานล่าสุด</p>
+        </div>
+
+        <div class="stat-card bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center">
+              <i data-lucide="clipboard-list" class="w-5 h-5 text-sky-500"></i>
+            </div>
+            <span class="text-xs font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full">Pre</span>
+          </div>
+          <p class="text-3xl font-black text-slate-900 tabular-nums">{{ stats.pre_test_count }}</p>
+          <p class="text-xs text-slate-500 font-medium mt-0.5">ทำ Pre-test แล้ว</p>
+          {% if stats.total_users > 0 %}
+          <div class="mt-2 bg-slate-100 rounded-full h-1.5">
+            <div class="bg-sky-500 h-1.5 rounded-full transition-all" style="width:{{ [((stats.pre_test_count / stats.total_users) * 100)|int, 100]|min }}%"></div>
+          </div>
+          <p class="text-[10px] text-slate-400 font-bold mt-1">{{ [((stats.pre_test_count / stats.total_users) * 100)|int, 100]|min }}% ของผู้เข้าร่วม</p>
+          {% endif %}
+        </div>
+
+        <div class="stat-card bg-white rounded-2xl p-5 border border-violet-100 shadow-sm ring-1 ring-violet-100">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center">
+              <i data-lucide="clipboard-check" class="w-5 h-5 text-violet-600"></i>
+            </div>
+            <span class="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">Post</span>
+          </div>
+          <p class="text-3xl font-black text-violet-700 tabular-nums">{{ stats.post_test_count }}</p>
+          <p class="text-xs text-slate-500 font-medium mt-0.5">ทำ Post-test แล้ว</p>
+          {% if stats.total_users > 0 %}
+          <div class="mt-2 bg-slate-100 rounded-full h-1.5">
+            <div class="bg-violet-500 h-1.5 rounded-full transition-all" style="width:{{ [((stats.post_test_count / stats.total_users) * 100)|int, 100]|min }}%"></div>
+          </div>
+          <p class="text-[10px] text-slate-400 font-bold mt-1">{{ [((stats.post_test_count / stats.total_users) * 100)|int, 100]|min }}% ของผู้เข้าร่วม</p>
+          {% endif %}
+        </div>
+
+        <div class="stat-card bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+              <i data-lucide="book-open" class="w-5 h-5 text-amber-500"></i>
+            </div>
+            <span class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">คลัง</span>
+          </div>
+          <p class="text-3xl font-black text-slate-900 tabular-nums">{{ stats.total_materials }}</p>
+          <p class="text-xs text-slate-500 font-medium mt-0.5">สื่อในคลังความรู้</p>
+        </div>
+      </div>
+
+      <!-- Live Online Banner -->
+      <div id="liveOnlineBanner" class="hidden bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl px-5 py-3.5 flex items-center gap-3 shadow-sm">
+        <span class="w-2.5 h-2.5 bg-white rounded-full animate-pulse shrink-0"></span>
+        <p class="text-white text-sm font-black flex-1">ออนไลน์ตอนนี้: <span id="onlineCountText">-</span></p>
+        <span class="text-emerald-100 text-[11px] font-medium">อัพเดทอัตโนมัติ</span>
+      </div>
+
+      <!-- User Table (Quick Overview) -->
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h2 class="text-sm font-black text-slate-800 flex items-center gap-2">
+            <i data-lucide="users" class="w-4 h-4 text-slate-500"></i> รายชื่อผู้เข้าร่วม
+          </h2>
+          <button onclick="switchTab('users')" class="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
+            ดูทั้งหมด <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-5 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">ชื่อ / อีเมล</th>
+                <th class="text-center px-4 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider hidden sm:table-cell">สถานะ</th>
+                <th class="text-center px-4 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider hidden md:table-cell">Pre-test</th>
+                <th class="text-center px-4 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider hidden lg:table-cell">Post-test</th>
+                <th class="text-right px-5 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+              {% for u in users %}
+              <tr class="hover:bg-slate-50/60 transition-colors">
+                <td class="px-5 py-3.5">
+                  <div class="flex items-center gap-3">
+                    <div class="relative shrink-0">
+                      <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-black text-xs">
+                        {{ (u.name or 'U')[0].upper() }}
+                      </div>
+                      <span data-presence-uid="{{ u.id }}" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-slate-200 border-2 border-white" title="ไม่ทราบสถานะ"></span>
+                    </div>
+                    <div>
+                      <p class="font-bold text-slate-800 text-sm leading-none">{{ u.name or 'ไม่ระบุชื่อ' }}</p>
+                      <p class="text-[11px] text-slate-400 mt-0.5">{{ u.email }}</p>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-3.5 text-center hidden sm:table-cell" data-presence-cell-uid="{{ u.id }}">
+                  <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-400 text-[10px] font-black px-2.5 py-1 rounded-full">
+                    <span class="w-1.5 h-1.5 bg-slate-300 rounded-full"></span>
+                    <span>กำลังโหลด...</span>
+                  </span>
+                </td>
+                <td class="px-4 py-3.5 text-center hidden md:table-cell">
+                  {% if u.latest_answers %}
+                  <div class="flex flex-col items-center gap-1">
+                    <span class="inline-flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">
+                      <i data-lucide="check-circle" class="w-3 h-3"></i> ทำแล้ว
+                    </span>
+                    <button onclick="viewPosttestAnswers({{ u.id }}, '{{ u.name | replace("'", "\\'") }}')"
+                      class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded-full border border-emerald-200 transition-colors flex items-center gap-1">
+                      <i data-lucide="file-text" class="w-3 h-3"></i> ดูคำตอบ
+                    </button>
+                  </div>
+                  {% else %}
+                  <span class="bg-slate-100 text-slate-400 text-[10px] font-black px-2.5 py-1 rounded-full">ยังไม่ทำ</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-3.5 text-center hidden lg:table-cell">
+                  {% if u.post_test_done %}
+                  <div class="flex flex-col items-center gap-1">
+                    <span class="inline-flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">
+                      <i data-lucide="check-circle" class="w-3 h-3"></i> ทำแล้ว
+                    </span>
+                    <button onclick="viewPosttestAnswers({{ u.id }}, '{{ u.name | replace("'", "\\'") }}')"
+                      class="bg-violet-50 hover:bg-violet-100 text-violet-700 text-[10px] font-black px-2 py-0.5 rounded-full border border-violet-200 transition-colors flex items-center gap-1">
+                      <i data-lucide="file-text" class="w-3 h-3"></i> ดูคำตอบ
+                    </button>
+                  </div>
+                  {% elif u.is_unlocked %}
+                  <span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-[10px] font-black px-2.5 py-1 rounded-full border border-amber-200">
+                    <span class="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span> รอทำ...
+                  </span>
+                  {% else %}
+                  <span class="bg-slate-100 text-slate-400 text-[10px] font-black px-2.5 py-1 rounded-full">ล็อกอยู่</span>
+                  {% endif %}
+                </td>
+                <td class="px-5 py-3.5 text-right">
+                  <a href="/admin/view_user/{{ u.id }}" class="inline-flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+                    <i data-lucide="eye" class="w-3.5 h-3.5"></i> ดู
+                  </a>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="px-5 py-10 text-center text-sm text-slate-400 font-medium">ยังไม่มีผู้เข้าร่วมโครงการ</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB: USERS -->
+    <!-- ============================================================ -->
+    <div id="tab-users" class="tab-panel space-y-5">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div class="relative flex-1 w-full">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+          <input type="text" id="searchInput" placeholder="ค้นหาชื่อหรืออีเมล..." oninput="filterUsers()"
+            class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 shadow-sm">
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100">
+          <h2 class="text-sm font-black text-slate-800">ผู้เข้าร่วมทั้งหมด ({{ users | length }} คน)</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm" id="usersTable">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-5 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">ผู้ใช้</th>
+                <th class="text-center px-4 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider hidden sm:table-cell">ใช้งานล่าสุด</th>
+                <th class="text-center px-4 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider hidden md:table-cell">Pre-test</th>
+                <th class="text-center px-4 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">Post-test</th>
+                <th class="text-right px-5 py-3 text-[11px] font-black text-slate-500 uppercase tracking-wider">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50" id="usersTableBody">
+              {% for u in users %}
+              <tr class="hover:bg-slate-50/60 transition-colors user-row" data-name="{{ u.name | lower }}" data-email="{{ u.email | lower }}">
+                <td class="px-5 py-4">
+                  <div class="flex items-center gap-3">
+                    <div class="relative shrink-0">
+                      <div class="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-black text-sm">
+                        {{ (u.name or 'U')[0].upper() }}
+                      </div>
+                      <span data-presence-uid="{{ u.id }}" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-slate-200 border-2 border-white" title="ไม่ทราบสถานะ"></span>
+                    </div>
+                    <div>
+                      <p class="font-bold text-slate-800 leading-none">{{ u.name or 'ไม่ระบุชื่อ' }}</p>
+                      <p class="text-xs text-slate-400 mt-0.5">{{ u.email }}</p>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-4 text-center hidden sm:table-cell" data-presence-cell-uid="{{ u.id }}">
+                  <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-400 text-[10px] font-black px-2.5 py-1 rounded-full">
+                    <span class="w-1.5 h-1.5 bg-slate-300 rounded-full"></span>
+                    <span>กำลังโหลด...</span>
+                  </span>
+                </td>
+                <td class="px-4 py-4 text-center hidden md:table-cell">
+                  {% if u.latest_answers %}
+                  <div class="flex flex-col items-center gap-1.5">
+                    <span class="inline-flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">
+                      <i data-lucide="check-circle" class="w-3 h-3"></i> ทำแล้ว
+                    </span>
+                    <button onclick="viewPosttestAnswers({{ u.id }}, '{{ u.name | replace("'", "\\'") }}')"
+                      class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-black px-2.5 py-1 rounded-full border border-emerald-200 transition-colors flex items-center gap-1">
+                      <i data-lucide="file-text" class="w-3 h-3"></i> ดูคำตอบ
+                    </button>
+                  </div>
+                  {% else %}
+                  <span class="bg-slate-100 text-slate-400 text-[10px] font-black px-2.5 py-1 rounded-full">ยังไม่ทำ</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-4 text-center">
+                  <div class="flex flex-col items-center gap-1.5">
+                    <!-- Completion status badge -->
+                    {% if u.post_test_done %}
+                    <span class="inline-flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">
+                      <i data-lucide="check-circle" class="w-3 h-3"></i> ทำแล้ว
+                    </span>
+                    {% elif u.is_unlocked %}
+                    <span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-[10px] font-black px-2.5 py-1 rounded-full border border-amber-200">
+                      <span class="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span> รอทำ...
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-400 text-[10px] font-black px-2.5 py-1 rounded-full">
+                      ยังไม่ได้ทำ
+                    </span>
+                    {% endif %}
+                    <!-- Toggle lock/unlock button -->
+                    <button
+                      id="posttest-toggle-{{ u.id }}"
+                      onclick="togglePosttest({{ u.id }}, this)"
+                      data-unlocked="{{ 1 if u.is_unlocked else 0 }}"
+                      class="{% if u.is_unlocked %}bg-violet-600 text-white border-violet-700{% else %}bg-slate-100 text-slate-500 border-slate-200{% endif %} text-[10px] font-black px-3 py-1.5 rounded-full border transition-all flex items-center gap-1 hover:opacity-80">
+                      {% if u.is_unlocked %}
+                      <i data-lucide="unlock" class="w-3 h-3"></i> <span>ปลดล็อก</span>
+                      {% else %}
+                      <i data-lucide="lock" class="w-3 h-3"></i> <span>ล็อกอยู่</span>
+                      {% endif %}
+                    </button>
+                    <!-- View answers button (show only when post-test done) -->
+                    {% if u.post_test_done %}
+                    <button onclick="viewPosttestAnswers({{ u.id }}, '{{ u.name | replace("'", "\\'") }}')"
+                      class="bg-violet-50 hover:bg-violet-100 text-violet-700 text-[10px] font-black px-2.5 py-1 rounded-full border border-violet-200 transition-colors flex items-center gap-1">
+                      <i data-lucide="file-text" class="w-3 h-3"></i> ดูคำตอบ
+                    </button>
+                    {% endif %}
+                  </div>
+                </td>
+                <td class="px-5 py-4">
+                  <div class="flex items-center justify-end gap-2">
+                    <button onclick="openEditNameModal({{ u.id }}, '{{ u.name | replace("'", "\\'") | replace('"', '&quot;') }}', '{{ (u.last_name or '') | replace("'", "\\'") | replace('"', '&quot;') }}')"
+                      class="action-btn inline-flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors" title="แก้ไขชื่อ-นามสกุล">
+                      <i data-lucide="pencil" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">ชื่อ</span>
+                    </button>
+                    <button onclick="openLabModal({{ u.id }}, '{{ u.name | replace("'", "\\'") }}')"
+                      class="action-btn inline-flex items-center gap-1 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+                      <i data-lucide="flask-conical" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">ผลแลป</span>
+                    </button>
+                    <button onclick="openCertModal({{ u.id }}, '{{ u.name | replace("'", "\\'") }}')"
+                      class="action-btn inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+                      <i data-lucide="award" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">เกียรติบัตร</span>
+                    </button>
+                    <form action="/admin/delete_user" method="POST" onsubmit="return confirm('ยืนยันลบผู้ใช้ {{ u.name }}?')">
+                      <input type="hidden" name="user_id" value="{{ u.id }}">
+                      <button type="submit" class="action-btn inline-flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">ลบ</span>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="px-5 py-12 text-center text-sm text-slate-400 font-medium">ยังไม่มีผู้เข้าร่วมโครงการ</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Send nudge form -->
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <h3 class="text-sm font-black text-slate-800 mb-4 flex items-center gap-2">
+          <i data-lucide="send" class="w-4 h-4 text-indigo-500"></i> ส่งข้อความแจ้งเตือน (Nudge)
+        </h3>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <select id="nudgeUserId" class="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 bg-white">
+            <option value="">-- เลือกผู้ใช้ --</option>
+            {% for u in users %}
+            <option value="{{ u.id }}">{{ u.name }} ({{ u.email }})</option>
+            {% endfor %}
+          </select>
+          <input type="text" id="nudgeMsg" placeholder="ข้อความที่ต้องการส่ง..." class="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40">
+          <button onclick="sendNudge()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors flex items-center gap-2 shrink-0">
+            <i data-lucide="send" class="w-4 h-4"></i> ส่ง
+          </button>
+        </div>
+        <div id="nudgeResult" class="hidden mt-3 text-xs font-bold text-emerald-600 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-200"></div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB: CONTENT -->
+    <!-- ============================================================ -->
+    <div id="tab-content" class="tab-panel space-y-5">
+
+      <!-- Add new material -->
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <h3 class="text-sm font-black text-slate-800 mb-4 flex items-center gap-2">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-500"></i> เพิ่มสื่อใหม่
+        </h3>
+        <form action="/admin/add_material" method="POST" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs font-black text-slate-600 uppercase tracking-wider mb-1.5 block">ชื่อเรื่อง <span class="text-red-500">*</span></label>
+              <input type="text" name="title" required placeholder="เช่น วิธีนอนหลับอย่างมีคุณภาพ"
+                class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 bg-slate-50">
+            </div>
+            <div>
+              <label class="text-xs font-black text-slate-600 uppercase tracking-wider mb-1.5 block">หมวดหมู่</label>
+              <select name="category" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 bg-slate-50">
+                <option value="การออกกำลังกาย">การออกกำลังกาย</option>
+                <option value="โภชนาการ">โภชนาการ</option>
+                <option value="การนอนหลับ">การนอนหลับ</option>
+                <option value="สุขภาพใจ">สุขภาพใจ</option>
+                <option value="ทั่วไป">ทั่วไป</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-black text-slate-600 uppercase tracking-wider mb-1.5 block">URL (YouTube หรือบทความ) <span class="text-red-500">*</span></label>
+            <input type="url" name="url" required placeholder="https://www.youtube.com/watch?v=..."
+              class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 bg-slate-50">
+          </div>
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm px-6 py-2.5 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+            <i data-lucide="plus" class="w-4 h-4"></i> เพิ่มเนื้อหา
+          </button>
+        </form>
+      </div>
+
+      <!-- Material list -->
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100">
+          <h3 class="text-sm font-black text-slate-800">เนื้อหาในคลังทั้งหมด ({{ materials | length }} รายการ)</h3>
+        </div>
+        {% if materials %}
+        <div class="divide-y divide-slate-50">
+          {% for m in materials %}
+          <div class="px-5 py-4 flex items-center gap-4 hover:bg-slate-50/60 transition-colors">
+            <div class="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center
+              {{ 'bg-red-50 text-red-500' if ('youtube' in m.url or 'youtu.be' in m.url) else 'bg-indigo-50 text-indigo-500' }}">
+              {% if 'youtube' in m.url or 'youtu.be' in m.url %}
+              <i data-lucide="play-circle" class="w-5 h-5"></i>
+              {% else %}
+              <i data-lucide="file-text" class="w-5 h-5"></i>
+              {% endif %}
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-bold text-slate-800 text-sm truncate">{{ m.title }}</p>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span class="text-[10px] font-black text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">{{ m.category }}</span>
+                <a href="{{ m.url }}" target="_blank" class="text-[10px] text-slate-400 hover:text-slate-600 truncate max-w-[200px]">{{ m.url[:50] }}...</a>
+              </div>
+            </div>
+            <form action="/admin/delete_material" method="POST" onsubmit="return confirm('ลบ \'{{ m.title }}\' ?')">
+              <input type="hidden" name="material_id" value="{{ m.id }}">
+              <button type="submit" class="action-btn w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition-colors">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="px-5 py-12 text-center">
+          <div class="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+            <i data-lucide="inbox" class="w-5 h-5 text-slate-400"></i>
+          </div>
+          <p class="text-sm font-bold text-slate-500">ยังไม่มีเนื้อหาในคลัง</p>
+          <p class="text-xs text-slate-400 mt-1">เพิ่มวิดีโอหรือบทความด้านบน</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB: BRANDING -->
+    <!-- ============================================================ -->
+    <div id="tab-branding" class="tab-panel space-y-5">
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100">
+          <h3 class="text-sm font-black text-slate-800 flex items-center gap-2">
+            <i data-lucide="palette" class="w-4 h-4 text-indigo-500"></i> ตั้งค่าแบรนด์แอป
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">การเปลี่ยนแปลงจะมีผลกับหน้าล็อกอิน สมัคร และในแอป</p>
+        </div>
+        <div class="p-6">
+          <!-- Current Preview -->
+          <div class="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-200">
+            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">ตัวอย่างปัจจุบัน</p>
+            <div class="flex items-center gap-3">
+              {% if app_settings.logo_path %}
+              <img src="{{ app_settings.logo_path }}" alt="Logo" class="w-12 h-12 rounded-[14px] object-cover shadow">
+              {% else %}
+              <div class="w-12 h-12 rounded-[14px] bg-[#064e3b] flex items-center justify-center shadow">
+                <i data-lucide="dna" class="w-6 h-6 text-white"></i>
+              </div>
+              {% endif %}
+              <div>
+                <p class="font-black text-slate-900 text-lg leading-none" id="previewName">{{ app_settings.app_name }}</p>
+                <p class="text-xs text-slate-400 mt-0.5">ฟอนต์: {{ app_settings.font_name }}</p>
+              </div>
+            </div>
+          </div>
+
+          <form method="POST" action="/admin/save_branding" enctype="multipart/form-data" class="space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <!-- App Name -->
+              <div>
+                <label class="text-xs font-black text-slate-600 uppercase tracking-wider mb-1.5 block">ชื่อแอปพลิเคชัน</label>
+                <input type="text" name="app_name" value="{{ settings.get('app_name', 'mHealth') }}"
+                  placeholder="เช่น mHealth, HealthPlus"
+                  oninput="document.getElementById('previewName').textContent = this.value || 'mHealth'"
+                  class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-400 bg-slate-50">
+              </div>
+              <!-- Font -->
+              <div>
+                <label class="text-xs font-black text-slate-600 uppercase tracking-wider mb-1.5 block">ฟอนต์แอป</label>
+                <select name="font_name" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 bg-slate-50">
+                  {% set fonts = ['Prompt', 'Sarabun', 'Kanit', 'Mitr', 'Noto Sans Thai', 'Chakra Petch', 'Inter'] %}
+                  {% for f in fonts %}
+                  <option value="{{ f }}" {{ 'selected' if settings.get('font_name','Prompt') == f else '' }}>{{ f }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <!-- Logo Upload -->
+            <div>
+              <label class="text-xs font-black text-slate-600 uppercase tracking-wider mb-1.5 block">โลโก้แอป</label>
+              <p class="text-xs text-slate-400 mb-2">รองรับ PNG, JPG, SVG, WebP (แนะนำ 72×72px ขึ้นไป)</p>
+              <label class="flex items-center gap-4 border-2 border-dashed border-slate-200 rounded-xl p-4 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all" id="logoDropzone">
+                {% if app_settings.logo_path %}
+                <img src="{{ app_settings.logo_path }}" alt="Logo" class="w-14 h-14 rounded-xl object-cover shadow" id="logoPreview">
+                {% else %}
+                <div class="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center" id="logoPreviewBox">
+                  <i data-lucide="upload-cloud" class="w-6 h-6 text-slate-400"></i>
+                </div>
+                <img src="" alt="" class="w-14 h-14 rounded-xl object-cover shadow hidden" id="logoPreview">
+                {% endif %}
+                <div>
+                  <p class="text-sm font-bold text-slate-700">คลิกเพื่อเลือกไฟล์โลโก้</p>
+                  <p class="text-xs text-slate-400">หรือลากไฟล์มาวางที่นี่</p>
+                </div>
+                <input type="file" name="logo" accept="image/*" class="hidden" id="logoInput" onchange="previewLogo(this)">
+              </label>
+            </div>
+
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm px-6 py-2.5 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+              <i data-lucide="save" class="w-4 h-4"></i> บันทึกการตั้งค่า
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB: QUESTIONS -->
+    <!-- ============================================================ -->
+    <div id="tab-questions" class="tab-panel space-y-5">
+      {% if flash_message and active_tab == 'questions' %}
+      <div class="flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold px-5 py-3.5 rounded-2xl shadow-sm">
+        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 shrink-0"></i>{{ flash_message }}
+      </div>
+      {% endif %}
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 class="text-sm font-black text-slate-800 flex items-center gap-2">
+            <i data-lucide="clipboard-edit" class="w-4 h-4 text-violet-500"></i> แก้ไขข้อคำถาม Pre/Post Test
+          </h3>
+          <form action="/admin/reset_questions" method="POST" onsubmit="return confirm('รีเซ็ตคำถามทั้งหมดกลับเป็นค่าเริ่มต้น?')">
+            <button type="submit" class="text-xs text-slate-500 hover:text-rose-500 font-bold flex items-center gap-1 transition-colors">
+              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> รีเซ็ต
+            </button>
+          </form>
+        </div>
+        <div class="p-5">
+          <p class="text-xs text-slate-500 mb-5">ข้อคำถามเหล่านี้จะใช้กับทั้ง Pre-test และ Post-test ผู้ใช้ทุกคน</p>
+          <form action="/admin/save_questions" method="POST" class="space-y-6">
+
+            {% set dim_colors_admin = {1: '#f97316', 2: '#3b82f6', 3: '#6366f1', 4: '#a855f7', 5: '#059669'} %}
+            {% set dim_bg_admin = {1: '#fff7ed', 2: '#eff6ff', 3: '#eef2ff', 4: '#faf5ff', 5: '#ecfdf5'} %}
+            {% set dim_icons_admin = {1: 'apple', 2: 'dumbbell', 3: 'moon', 4: 'brain', 5: 'leaf'} %}
+
+            {% for dim_id in range(1, 6) %}
+            {% set dim_info = by_dim[dim_id] %}
+            <div class="border border-slate-100 rounded-2xl overflow-hidden">
+              <div class="px-4 py-3 flex items-center gap-2 border-b border-slate-100" style="background: {{ dim_bg_admin[dim_id] }};">
+                <i data-lucide="{{ dim_icons_admin[dim_id] }}" class="w-4 h-4" style="color: {{ dim_colors_admin[dim_id] }};"></i>
+                <span class="text-sm font-black text-slate-800">มิติที่ {{ dim_id }}: ด้าน{{ dim_info.meta.name }}</span>
+              </div>
+              <div class="divide-y divide-slate-50">
+                {% for q in dim_info['questions'] %}
+                <div class="px-4 py-3 flex items-start gap-3">
+                  <span class="w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 mt-2"
+                        style="background: {{ dim_bg_admin[dim_id] }}; color: {{ dim_colors_admin[dim_id] }};">{{ q.q_number }}</span>
+                  <textarea name="q_{{ q.q_number }}" rows="2"
+                            class="flex-1 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-400/20 resize-none transition-all">{{ q.q_text }}</textarea>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endfor %}
+
+            <button type="submit"
+                    class="w-full h-12 bg-violet-600 hover:bg-violet-700 text-white font-black text-sm rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm shadow-violet-500/20">
+              <i data-lucide="save" class="w-4 h-4"></i> บันทึกคำถามทั้งหมด
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB: RANKING -->
+    <!-- ============================================================ -->
+    <div id="tab-ranking" class="tab-panel space-y-5">
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100">
+          <h3 class="text-sm font-black text-slate-800 flex items-center gap-2">
+            <i data-lucide="trophy" class="w-4 h-4 text-amber-500"></i> อันดับคะแนนสะสม
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">คะแนนรวมตลอดโครงการ เรียงจากมากไปน้อย</p>
+        </div>
+        <div class="divide-y divide-slate-50">
+          {% if leaderboard %}
+          {% for r in leaderboard %}
+          <div class="px-5 py-3.5 flex items-center gap-3 hover:bg-slate-50 transition-colors">
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm shrink-0
+              {% if r.rank == 1 %}bg-yellow-100 text-yellow-700{% elif r.rank == 2 %}bg-slate-200 text-slate-600{% elif r.rank == 3 %}bg-amber-100 text-amber-700{% else %}bg-slate-100 text-slate-500{% endif %}">
+              {% if r.rank == 1 %}🥇{% elif r.rank == 2 %}🥈{% elif r.rank == 3 %}🥉{% else %}{{ r.rank }}{% endif %}
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-bold text-slate-800 break-words">{{ r.name }}</p>
+              <p class="text-[10px] text-slate-400 break-all">{{ r.email }}</p>
+            </div>
+            <div class="flex items-center gap-1.5 bg-amber-50 border border-amber-200/60 px-2.5 py-1 rounded-xl shrink-0">
+              <i data-lucide="zap" class="w-3 h-3 text-amber-500"></i>
+              <span class="text-xs font-black text-amber-700 tabular-nums">{{ r.points }}</span>
+            </div>
+          </div>
+          {% endfor %}
+          {% else %}
+          <div class="text-center py-12 text-slate-400">
+            <i data-lucide="trophy" class="w-10 h-10 mx-auto mb-2 text-slate-200"></i>
+            <p class="text-sm font-bold">ยังไม่มีข้อมูลคะแนน</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB: CHAT MODERATION -->
+    <!-- ============================================================ -->
+    <div id="tab-chat" class="tab-panel space-y-5">
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col" style="min-height:540px;">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-black text-slate-800 flex items-center gap-2">
+              <i data-lucide="message-circle" class="w-4 h-4 text-blue-500"></i> แชทชุมชน — กลั่นกรองโดยแอดมิน
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">ดู / ลบข้อความของผู้ใช้ทุกคน</p>
+          </div>
+          <button onclick="adminLoadChat()" class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl transition-colors">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> รีเฟรช
+          </button>
+        </div>
+        <div id="adminChatFeed" class="flex-1 overflow-y-auto px-5 py-4 space-y-3" style="max-height:480px;">
+          <div class="text-center py-10 text-slate-400 text-xs font-medium" id="adminChatEmpty">กำลังโหลดข้อความ...</div>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-100 bg-slate-50 space-y-2">
+          <!-- File preview strip -->
+          <div id="adminFilePreview" class="hidden flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
+            <div id="adminFileThumb" class="w-10 h-10 rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center shrink-0 text-lg"></div>
+            <div class="flex-1 min-w-0">
+              <p id="adminFileName" class="text-xs font-black text-slate-700 truncate"></p>
+              <p id="adminFileSize" class="text-[10px] text-slate-400 font-medium"></p>
+            </div>
+            <button onclick="adminClearFile()" class="w-6 h-6 bg-slate-200 hover:bg-red-100 text-slate-500 hover:text-red-500 rounded-full flex items-center justify-center transition-colors shrink-0">
+              <i data-lucide="x" class="w-3 h-3"></i>
+            </button>
+          </div>
+          <!-- Compose row -->
+          <div class="flex gap-2 items-end">
+            <input type="file" id="adminFileInput" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" class="hidden" onchange="adminOnFileSelect(this)">
+            <button onclick="document.getElementById('adminFileInput').click()" title="แนบไฟล์/รูป/วิดีโอ"
+              class="w-9 h-9 bg-white border border-slate-200 hover:bg-blue-50 hover:border-blue-400 text-slate-500 hover:text-blue-600 rounded-xl flex items-center justify-center shrink-0 transition-colors shadow-sm">
+              <i data-lucide="paperclip" class="w-4 h-4"></i>
+            </button>
+            <textarea id="adminChatInput" rows="2" placeholder="พิมพ์ข้อความในฐานะแอดมิน..."
+              class="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400 resize-none"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();adminSendChat();}"></textarea>
+            <button onclick="adminSendChat()" id="adminSendBtn" class="w-9 h-9 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex items-center justify-center shrink-0 transition-colors shadow-sm shadow-blue-500/25">
+              <i data-lucide="send" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+  lucide.createIcons();
+
+  const tabTitles = {
+    overview: 'ภาพรวมระบบ',
+    users: 'จัดการผู้ใช้',
+    content: 'คลังความรู้',
+    branding: 'ตั้งค่าแบรนด์',
+    questions: 'แก้ไขคำถาม',
+    ranking: 'อันดับคะแนน',
+    chat: 'แชทชุมชน'
+  };
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('[id^="tab-btn-"]').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.getElementById('tab-btn-' + tab).classList.add('active');
+    document.getElementById('pageTitle').textContent = tabTitles[tab];
+    closeSidebar();
+    lucide.createIcons();
+  }
+
+  // Check URL hash or server-side active_tab on load
+  const hashTab = location.hash.replace('#', '');
+  const serverTab = '{{ active_tab }}';
+  if (hashTab && tabTitles[hashTab]) switchTab(hashTab);
+  else if (serverTab && tabTitles[serverTab] && serverTab !== 'overview') switchTab(serverTab);
+
+  // Search users
+  function filterUsers() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    document.querySelectorAll('.user-row').forEach(row => {
+      const name = row.getAttribute('data-name') || '';
+      const email = row.getAttribute('data-email') || '';
+      row.style.display = (name.includes(q) || email.includes(q)) ? '' : 'none';
+    });
+  }
+
+  // Send nudge
+  async function sendNudge() {
+    const userId = document.getElementById('nudgeUserId').value;
+    const msg = document.getElementById('nudgeMsg').value.trim();
+    if (!userId || !msg) { alert('กรุณาเลือกผู้ใช้และกรอกข้อความ'); return; }
+    const res = await fetch('/api/send_nudge', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({user_id: parseInt(userId), message: msg})
+    });
+    const d = await res.json();
+    const el = document.getElementById('nudgeResult');
+    if (d.success) {
+      el.textContent = '✅ ส่งข้อความสำเร็จแล้ว!';
+      el.classList.remove('hidden');
+      document.getElementById('nudgeMsg').value = '';
+      setTimeout(() => el.classList.add('hidden'), 3000);
+    } else {
+      el.textContent = '❌ เกิดข้อผิดพลาด: ' + (d.error || 'Unknown');
+      el.classList.remove('hidden');
+    }
+  }
+
+  // Logo preview
+  function previewLogo(input) {
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const preview = document.getElementById('logoPreview');
+        const box = document.getElementById('logoPreviewBox');
+        if (preview) { preview.src = e.target.result; preview.classList.remove('hidden'); }
+        if (box) box.classList.add('hidden');
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+
+  // Mobile sidebar
+  function openSidebar() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('overlay').classList.add('show');
+  }
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('overlay').classList.remove('show');
+  }
+
+  // =========== ADMIN CHAT MODERATION ===========
+  const ADMIN_CHAT_COLORS = ['#3b82f6','#6366f1','#8b5cf6','#ec4899','#f97316','#10b981','#06b6d4'];
+  let _adminChatIds = new Set();
+  let _adminChatPolling = null;
+
+  function adminAvatarColor(name) {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % ADMIN_CHAT_COLORS.length;
+    return ADMIN_CHAT_COLORS[Math.abs(h)];
+  }
+
+  function buildAdminBubble(msg) {
+    const sname = msg.sender_name || 'ไม่ระบุ';
+    const initials = sname[0]?.toUpperCase() || '?';
+    const color = adminAvatarColor(sname);
+    let fileHtml = '';
+    if (msg.file_name || msg.file_url) {
+      const src = msg.file_url || `/static/uploads/social/${msg.file_name}`;
+      const ftype = msg.file_type || '';
+      const fname = msg.file_name || '';
+      if (ftype.startsWith('image')) {
+        fileHtml = `<a href="${src}" target="_blank"><img src="${src}" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin-top:6px;border:1px solid #e2e8f0;cursor:pointer;" loading="lazy" onerror="this.style.display='none'"></a>`;
+      } else if (ftype.startsWith('video')) {
+        fileHtml = `<video src="${src}" controls style="width:100%;max-height:220px;border-radius:10px;margin-top:6px;background:#000;" preload="metadata"></video>`;
+      } else {
+        const icon = fname.endsWith('.pdf') ? '📄' : fname.match(/\.(xls|xlsx)$/) ? '📊' : fname.match(/\.(doc|docx)$/) ? '📝' : '📎';
+        fileHtml = `<a href="${src}" target="_blank" download style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#3b82f6;font-weight:700;margin-top:4px;padding:6px 10px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;text-decoration:none;">${icon} ${fname}</a>`;
+      }
+    }
+    const el = document.createElement('div');
+    el.dataset.msgId = msg.id;
+    el.className = 'flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100 transition-colors';
+    el.innerHTML = `
+      <div style="width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:white;flex-shrink:0;">${initials}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:800;color:#1e293b;">${sname}</span>
+          <span style="font-size:10px;color:#94a3b8;font-weight:500;">${msg.created_at}</span>
+        </div>
+        ${msg.text ? `<p style="font-size:13px;color:#334155;font-weight:500;line-height:1.6;margin:0 0 4px;white-space:pre-wrap;">${msg.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>` : ''}
+        ${fileHtml}
+      </div>
+      <button onclick="adminDeleteMsg(${msg.id},this)" title="ลบข้อความ"
+        class="ml-auto flex-shrink-0 w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-400 hover:text-red-600 transition-colors border border-red-100">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+      </button>`;
+    return el;
+  }
+
+  async function adminLoadChat() {
+    try {
+      const res = await fetch('/api/get_messages');
+      if (!res.ok) return;
+      const data = await res.json();
+      const msgs = Array.isArray(data) ? data : (data.msgs || []);
+      const feed = document.getElementById('adminChatFeed');
+      const empty = document.getElementById('adminChatEmpty');
+      if (!feed) return;
+
+      let added = false;
+      msgs.forEach(m => {
+        if (_adminChatIds.has(m.id)) return;
+        _adminChatIds.add(m.id);
+        const el = buildAdminBubble(m);
+        feed.insertBefore(el, empty);
+        added = true;
+      });
+
+      if (empty) empty.style.display = msgs.length === 0 ? 'block' : 'none';
+
+      const badge = document.getElementById('adminChatBadge');
+      if (badge) {
+        if (msgs.length > 0) {
+          badge.textContent = msgs.length > 99 ? '99+' : msgs.length;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+      lucide.createIcons();
+      if (added) setTimeout(() => { feed.scrollTop = feed.scrollHeight; }, 60);
+    } catch(e) {}
+  }
+
+  let _adminSelectedFile = null;
+
+  function adminOnFileSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+    _adminSelectedFile = file;
+    const prev = document.getElementById('adminFilePreview');
+    const thumb = document.getElementById('adminFileThumb');
+    const nameEl = document.getElementById('adminFileName');
+    const sizeEl = document.getElementById('adminFileSize');
+    prev.classList.remove('hidden');
+    nameEl.textContent = file.name;
+    const kb = (file.size / 1024).toFixed(1);
+    const mb = (file.size / 1024 / 1024).toFixed(2);
+    sizeEl.textContent = file.size > 1024*1024 ? `${mb} MB` : `${kb} KB`;
+    if (file.type.startsWith('image')) {
+      const url = URL.createObjectURL(file);
+      thumb.innerHTML = `<img src="${url}" class="w-full h-full object-cover">`;
+    } else if (file.type.startsWith('video')) {
+      thumb.textContent = '🎬';
+    } else if (file.type.includes('pdf')) {
+      thumb.textContent = '📄';
+    } else {
+      thumb.textContent = '📎';
+    }
+    lucide.createIcons();
+  }
+
+  function adminClearFile() {
+    _adminSelectedFile = null;
+    document.getElementById('adminFileInput').value = '';
+    document.getElementById('adminFilePreview').classList.add('hidden');
+    document.getElementById('adminFileThumb').innerHTML = '';
+  }
+
+  async function adminSendChat() {
+    const input = document.getElementById('adminChatInput');
+    const text = (input?.value || '').trim();
+    const file = _adminSelectedFile;
+    if (!text && !file) return;
+    const btn = document.getElementById('adminSendBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>';
+    try {
+      let d;
+      if (file) {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('text', text);
+        const res = await fetch('/api/send_message_file', { method: 'POST', body: form });
+        d = await res.json();
+      } else {
+        const res = await fetch('/api/send_message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        d = await res.json();
+      }
+      if (d.success) {
+        input.value = '';
+        adminClearFile();
+        _adminChatIds.clear();
+        document.getElementById('adminChatFeed').querySelectorAll('[data-msg-id]').forEach(e => e.remove());
+        await adminLoadChat();
+      } else {
+        alert(d.error || 'เกิดข้อผิดพลาด');
+      }
+    } catch(e) { alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); }
+    finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i>';
+      lucide.createIcons();
+    }
+  }
+
+  async function adminDeleteMsg(msgId, btn) {
+    if (!confirm('ลบข้อความนี้?')) return;
+    try {
+      const res = await fetch(`/api/delete_message/${msgId}`, { method: 'POST' });
+      const d = await res.json();
+      if (d.success) {
+        const row = btn.closest('[data-msg-id]');
+        if (row) row.remove();
+        _adminChatIds.delete(msgId);
+        const feed = document.getElementById('adminChatFeed');
+        if (feed && feed.querySelectorAll('[data-msg-id]').length === 0) {
+          document.getElementById('adminChatEmpty').style.display = 'block';
+        }
+        const badge = document.getElementById('adminChatBadge');
+        if (badge) {
+          const cnt = feed ? feed.querySelectorAll('[data-msg-id]').length : 0;
+          if (cnt > 0) { badge.textContent = cnt; badge.classList.remove('hidden'); }
+          else badge.classList.add('hidden');
+        }
+      }
+    } catch(e) {}
+  }
+
+  adminLoadChat();
+  _adminChatPolling = setInterval(adminLoadChat, 10000);
+
+  // =========== POSTTEST TOGGLE + VIEW ===========
+  async function togglePosttest(userId, btn) {
+    const fd = new FormData();
+    fd.append('user_id', userId);
+    try {
+      const res = await fetch('/admin/toggle_posttest', { method: 'POST', body: fd });
+      const d = await res.json();
+      if (!d.success) return;
+      const isUnlocked = d.is_unlocked === 1;
+      btn.dataset.unlocked = isUnlocked ? '1' : '0';
+      if (isUnlocked) {
+        btn.className = 'bg-violet-600 text-white border-violet-700 text-[10px] font-black px-3 py-1.5 rounded-full border transition-all flex items-center gap-1 hover:opacity-80';
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="11" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg> <span>ปลดล็อกแล้ว</span>';
+      } else {
+        btn.className = 'bg-slate-100 text-slate-500 border-slate-200 text-[10px] font-black px-3 py-1.5 rounded-full border transition-all flex items-center gap-1 hover:opacity-80';
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="11" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> <span>ล็อกอยู่</span>';
+      }
+    } catch(e) {
+      alert('เกิดข้อผิดพลาด กรุณาลองใหม่');
+    }
+  }
+
+  async function viewPosttestAnswers(userId, userName) {
+    document.getElementById('posttestModalTitle').textContent = `คำตอบ — ${userName}`;
+    document.getElementById('posttestModal').classList.remove('hidden');
+    document.getElementById('posttestModalBackdrop').style.opacity = '1';
+    document.getElementById('posttestModalSheet').style.transform = 'translateX(0)';
+    document.getElementById('posttestModalBody').innerHTML = `
+      <div class="flex items-center justify-center h-40">
+        <div class="animate-spin w-8 h-8 border-4 border-slate-200 border-t-violet-500 rounded-full"></div>
+      </div>`;
+    try {
+      const res = await fetch(`/api/admin/posttest_answers/${userId}`);
+      const d = await res.json();
+      if (!d.success) throw new Error('failed');
+      renderPosttestModal(d.data, userName);
+    } catch(e) {
+      document.getElementById('posttestModalBody').innerHTML = '<p class="text-sm text-slate-500 text-center py-10">ไม่สามารถโหลดข้อมูลได้</p>';
+    }
+  }
+
+  const ALL_QUESTIONS = [
+    // มิติที่ 1: โภชนาการ ข้อ 1-6
+    { n:1,  dim:'🍊 มิติที่ 1: ด้านโภชนาการ', color:'orange', text:'ท่านรับประทานอาหารที่เน้นการชะลอวัยและลดการอักเสบ (เช่น ผักหลากสี ธัญพืช)' },
+    { n:2,  dim:'🍊 มิติที่ 1: ด้านโภชนาการ', color:'orange', text:'ท่านหลีกเลี่ยงการรับประทานอาหารที่มีน้ำตาลหรือความหวานเกินเกณฑ์' },
+    { n:3,  dim:'🍊 มิติที่ 1: ด้านโภชนาการ', color:'orange', text:'ท่านหลีกเลี่ยงอาหารที่มีโซเดียม (เค็มจัด) หรืออาหารแปรรูป' },
+    { n:4,  dim:'🍊 มิติที่ 1: ด้านโภชนาการ', color:'orange', text:'ท่านหลีกเลี่ยงการรับประทานอาหารที่มีไขมันสูง' },
+    { n:5,  dim:'🍊 มิติที่ 1: ด้านโภชนาการ', color:'orange', text:'ท่านรับประทานอาหารเช้าเป็นประจำและเบามื้อเย็น' },
+    { n:6,  dim:'🍊 มิติที่ 1: ด้านโภชนาการ', color:'orange', text:'ท่านดื่มน้ำสะอาดอย่างเพียงพอในแต่ละวัน' },
+    // มิติที่ 2: การออกกำลังกาย ข้อ 7-12
+    { n:7,  dim:'🏋️ มิติที่ 2: ด้านการออกกำลังกาย', color:'blue', text:'ท่านออกกำลังกายแบบแอโรบิคอย่างสม่ำเสมอ' },
+    { n:8,  dim:'🏋️ มิติที่ 2: ด้านการออกกำลังกาย', color:'blue', text:'ท่านออกกำลังกายเพื่อสร้างมวลกล้ามเนื้อและกระตุ้นระบบเผาผลาญ' },
+    { n:9,  dim:'🏋️ มิติที่ 2: ด้านการออกกำลังกาย', color:'blue', text:'ท่านมีการเคลื่อนไหวร่างกายอย่างต่อเนื่องในชีวิตประจำวัน' },
+    { n:10, dim:'🏋️ มิติที่ 2: ด้านการออกกำลังกาย', color:'blue', text:'ท่านออกกำลังกายด้วยความหนักและระยะเวลาที่เหมาะสมกับวัย' },
+    { n:11, dim:'🏋️ มิติที่ 2: ด้านการออกกำลังกาย', color:'blue', text:'ท่านมีการบันทึกหรือติดตามกิจกรรมการออกกำลังกายของตนเอง' },
+    { n:12, dim:'🏋️ มิติที่ 2: ด้านการออกกำลังกาย', color:'blue', text:'ท่านหลีกเลี่ยงพฤติกรรมเนือยนิ่ง (เช่น การนั่งนิ่งๆ เป็นเวลานาน)' },
+    // มิติที่ 3: การนอนหลับ ข้อ 13-18
+    { n:13, dim:'🌙 มิติที่ 3: ด้านการนอนหลับ', color:'indigo', text:'ท่านเข้านอนและตื่นนอนตรงเวลาสม่ำเสมอ' },
+    { n:14, dim:'🌙 มิติที่ 3: ด้านการนอนหลับ', color:'indigo', text:'ท่านนอนหลับพักผ่อนได้อย่างน้อย 7 ชั่วโมงต่อคืน' },
+    { n:15, dim:'🌙 มิติที่ 3: ด้านการนอนหลับ', color:'indigo', text:'ท่านหลีกเลี่ยงการใช้หน้าจอสมาร์ทโฟนก่อนเข้านอนเพื่อคุณภาพการนอน' },
+    { n:16, dim:'🌙 มิติที่ 3: ด้านการนอนหลับ', color:'indigo', text:'ท่านนอนหลับได้สนิทและไม่มีอาการตื่นบ่อยกลางดึก' },
+    { n:17, dim:'🌙 มิติที่ 3: ด้านการนอนหลับ', color:'indigo', text:'ท่านรู้สึกสดชื่นและกระปรี้กระเปร่าเมื่อตื่นนอน' },
+    { n:18, dim:'🌙 มิติที่ 3: ด้านการนอนหลับ', color:'indigo', text:'ท่านจัดสิ่งแวดล้อมให้เหมาะสมกับการพักผ่อน (เช่น เงียบ สงบ)' },
+    // มิติที่ 4: การจัดการความเครียด ข้อ 19-24
+    { n:19, dim:'🧠 มิติที่ 4: ด้านการจัดการความเครียด', color:'purple', text:'ท่านรู้วิธีจัดการกับอารมณ์และลดความเครียดที่เกิดขึ้นระหว่างวัน' },
+    { n:20, dim:'🧠 มิติที่ 4: ด้านการจัดการความเครียด', color:'purple', text:'ท่านมีการฝึกสมาธิหรือกำหนดลมหายใจเพื่อความผ่อนคลาย' },
+    { n:21, dim:'🧠 มิติที่ 4: ด้านการจัดการความเครียด', color:'purple', text:'ท่านทำกิจกรรมที่สร้างความสุขทางจิตใจเพื่อลดฮอร์โมนความเครียด' },
+    { n:22, dim:'🧠 มิติที่ 4: ด้านการจัดการความเครียด', color:'purple', text:'ท่านมีทัศนคติที่ดี มองโลกในแง่ดี และรู้จักปล่อยวาง' },
+    { n:23, dim:'🧠 มิติที่ 4: ด้านการจัดการความเครียด', color:'purple', text:'ท่านปรึกษาหรือพูดคุยกับผู้อื่นเมื่อมีความไม่สบายใจ' },
+    { n:24, dim:'🧠 มิติที่ 4: ด้านการจัดการความเครียด', color:'purple', text:'ท่านมีเวลาทำกิจกรรมสันทนาการที่ตนเองสนใจเพื่อคลายความกังวล' },
+    // มิติที่ 5: สิ่งแวดล้อมและวิถีชีวิต ข้อ 25-30
+    { n:25, dim:'🌿 มิติที่ 5: ด้านสิ่งแวดล้อมและวิถีชีวิต', color:'emerald', text:'ท่านงดการสูบบุหรี่หรือหลีกเลี่ยงการรับควันบุหรี่' },
+    { n:26, dim:'🌿 มิติที่ 5: ด้านสิ่งแวดล้อมและวิถีชีวิต', color:'emerald', text:'ท่านงดหรือจำกัดการดื่มแอลกอฮอล์ในปริมาณที่เหมาะสม' },
+    { n:27, dim:'🌿 มิติที่ 5: ด้านสิ่งแวดล้อมและวิถีชีวิต', color:'emerald', text:'ท่านหลีกเลี่ยงการสัมผัสมลพิษ สารพิษ หรือฝุ่น PM2.5' },
+    { n:28, dim:'🌿 มิติที่ 5: ด้านสิ่งแวดล้อมและวิถีชีวิต', color:'emerald', text:'ท่านหลีกเลี่ยงการใช้สารเคมีหรือปัจจัยเสี่ยงที่เร่งกระบวนการชรา' },
+    { n:29, dim:'🌿 มิติที่ 5: ด้านสิ่งแวดล้อมและวิถีชีวิต', color:'emerald', text:'ท่านมีส่วนร่วมในกิจกรรมทางสังคมหรือการรวมกลุ่มกับผู้อื่น' },
+    { n:30, dim:'🌿 มิติที่ 5: ด้านสิ่งแวดล้อมและวิถีชีวิต', color:'emerald', text:'ท่านติดตามข้อมูลข่าวสารเพื่อปรับเปลี่ยนวิถีชีวิตให้มีคุณภาพ' },
+  ];
+
+  const SCORE_LABELS = { '1':'ไม่เคย', '2':'บางครั้ง', '3':'บ่อยครั้ง', '4':'เป็นประจำ' };
+  const SCORE_COLORS = {
+    '1':'bg-rose-50 text-rose-600 border-rose-200',
+    '2':'bg-amber-50 text-amber-600 border-amber-200',
+    '3':'bg-blue-50 text-blue-600 border-blue-200',
+    '4':'bg-emerald-50 text-emerald-600 border-emerald-200'
+  };
+
+  function renderPosttestModal(data, userName) {
+    const body = document.getElementById('posttestModalBody');
+    const pre = data.pre || null;
+    const post = data.post || null;
+    const hasBoth = pre && post;
+
+    if (!pre && !post) {
+      body.innerHTML = '<p class="text-sm text-slate-400 text-center py-10">ยังไม่มีข้อมูลแบบสอบถาม</p>';
+      return;
+    }
+
+    // ---- ส่วนที่ 1: ข้อมูลทั่วไป ----
+    const generalFields = [
+      { key: 'age',            label: 'อายุ',             unit: 'ปี',   src: 'col' },
+      { key: 'sex',            label: 'เพศ',              unit: '',     src: 'ans', map: {Men:'ชาย', Women:'หญิง'} },
+      { key: 'bmi',            label: 'BMI',              unit: '',     src: 'col' },
+      { key: 'waist',          label: 'รอบเอว',           unit: 'ซม.', src: 'col' },
+      { key: 'hip',            label: 'รอบสะโพก',         unit: 'ซม.', src: 'ans' },
+      { key: 'marital_status', label: 'สถานภาพสมรส',     unit: '',     src: 'ans' },
+      { key: 'education',      label: 'ระดับการศึกษา',   unit: '',     src: 'ans' },
+      { key: 'occupation',     label: 'อาชีพ',            unit: '',     src: 'ans' },
+      { key: 'has_disease',    label: 'โรคประจำตัว',      unit: '',     src: 'ans' },
+      { key: 'disease_detail', label: 'รายละเอียดโรค',   unit: '',     src: 'ans' },
+    ];
+
+    function getVal(info, field) {
+      if (!info) return '-';
+      let v;
+      if (field.src === 'col') v = info[field.key];
+      else v = (info.answers || {})[field.key];
+      if (v === undefined || v === null || v === '') return '-';
+      if (field.map && field.map[v]) return field.map[v] + ' ' + field.unit;
+      return v + (field.unit ? ' ' + field.unit : '');
+    }
+
+    function renderScoreBadge(val) {
+      if (!val || val === '-') return '<span class="text-slate-300 text-[11px]">—</span>';
+      const label = SCORE_LABELS[String(val)] || val;
+      const cls = SCORE_COLORS[String(val)] || 'bg-slate-50 text-slate-500 border-slate-200';
+      return `<span class="inline-block text-[10px] font-black px-2 py-0.5 rounded-full border ${cls}">${val} · ${label}</span>`;
+    }
+
+    // Header badges
+    let headerHtml = `<div class="flex gap-2 mb-4 flex-wrap">`;
+    if (pre)  headerHtml += `<span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[11px] font-black px-3 py-1.5 rounded-full border border-emerald-200">📋 ก่อนเข้าร่วมโปรแกรม${pre.created_at ? ' · ' + pre.created_at.slice(0,10) : ''}</span>`;
+    if (post) headerHtml += `<span class="inline-flex items-center gap-1 bg-violet-50 text-violet-700 text-[11px] font-black px-3 py-1.5 rounded-full border border-violet-200">📋 หลังเข้าร่วมโปรแกรม${post.created_at ? ' · ' + post.created_at.slice(0,10) : ''}</span>`;
+    headerHtml += `</div>`;
+
+    // ส่วนที่ 1 table
+    let general = `
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden mb-4">
+        <div class="px-4 py-2.5 bg-slate-100 border-b border-slate-200">
+          <span class="text-[11px] font-black text-slate-600">👤 ส่วนที่ 1: ข้อมูลทั่วไป</span>
+        </div>
+        <table class="w-full text-xs">
+          <thead class="bg-white border-b border-slate-100">
+            <tr>
+              <th class="px-3 py-2 text-left text-[10px] font-black text-slate-400 uppercase">หัวข้อ</th>
+              ${pre  ? '<th class="px-3 py-2 text-center text-[10px] font-black text-emerald-600 uppercase">Pre</th>' : ''}
+              ${post ? '<th class="px-3 py-2 text-center text-[10px] font-black text-violet-600 uppercase">Post</th>' : ''}
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-50">`;
+
+    for (const f of generalFields) {
+      const preVal = getVal(pre, f);
+      const postVal = getVal(post, f);
+      if (preVal === '-' && postVal === '-') continue;
+      general += `<tr class="hover:bg-slate-50/60">
+        <td class="px-3 py-2 font-semibold text-slate-600">${f.label}</td>
+        ${pre  ? `<td class="px-3 py-2 text-center font-bold text-slate-800">${preVal}</td>` : ''}
+        ${post ? `<td class="px-3 py-2 text-center font-bold text-slate-800">${postVal}</td>` : ''}
+      </tr>`;
+    }
+    general += `</tbody></table></div>`;
+
+    // ส่วนที่ 2: คำถาม 1-30 แบบ grouped by dimension
+    let dims = {};
+    for (const q of ALL_QUESTIONS) {
+      if (!dims[q.dim]) dims[q.dim] = [];
+      dims[q.dim].push(q);
+    }
+
+    let qHtml = '';
+    for (const [dimName, qs] of Object.entries(dims)) {
+      const firstColor = qs[0].color;
+      const colorHeader = {
+        orange: 'bg-orange-50 border-orange-200 text-orange-700',
+        blue:   'bg-blue-50 border-blue-200 text-blue-700',
+        indigo: 'bg-indigo-50 border-indigo-200 text-indigo-700',
+        purple: 'bg-purple-50 border-purple-200 text-purple-700',
+        emerald:'bg-emerald-50 border-emerald-200 text-emerald-700',
+      }[firstColor] || 'bg-slate-50 border-slate-200 text-slate-700';
+
+      qHtml += `
+        <div class="border border-slate-200 rounded-2xl overflow-hidden mb-4">
+          <div class="px-4 py-2.5 ${colorHeader} border-b">
+            <span class="text-[11px] font-black">${dimName}</span>
+          </div>
+          <table class="w-full text-xs">
+            <thead class="bg-white border-b border-slate-100">
+              <tr>
+                <th class="px-3 py-2 text-left text-[10px] font-black text-slate-400 uppercase w-6">ข้อ</th>
+                <th class="px-3 py-2 text-left text-[10px] font-black text-slate-400 uppercase">คำถาม</th>
+                ${pre  ? '<th class="px-3 py-2 text-center text-[10px] font-black text-emerald-600 uppercase">Pre</th>' : ''}
+                ${post ? '<th class="px-3 py-2 text-center text-[10px] font-black text-violet-600 uppercase">Post</th>' : ''}
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">`;
+
+      for (const q of qs) {
+        const preAns  = pre  ? (pre.answers  || {})[`q${q.n}`] : null;
+        const postAns = post ? (post.answers || {})[`q${q.n}`] : null;
+        // Highlight if changed
+        const changed = hasBoth && preAns && postAns && preAns !== postAns;
+        qHtml += `<tr class="${changed ? 'bg-amber-50/40' : 'hover:bg-slate-50/60'}">
+          <td class="px-3 py-2.5 text-center font-black text-slate-400">${q.n}</td>
+          <td class="px-3 py-2.5 text-slate-700 leading-snug">${q.text}</td>
+          ${pre  ? `<td class="px-3 py-2.5 text-center">${renderScoreBadge(preAns)}</td>` : ''}
+          ${post ? `<td class="px-3 py-2.5 text-center">${renderScoreBadge(postAns)}</td>` : ''}
+        </tr>`;
+      }
+      qHtml += `</tbody></table></div>`;
+    }
+
+    body.innerHTML = headerHtml + general + qHtml;
+  }
+
+  function closePosttestModal() {
+    document.getElementById('posttestModalSheet').style.transform = 'translateX(100%)';
+    document.getElementById('posttestModalBackdrop').style.opacity = '0';
+    setTimeout(() => document.getElementById('posttestModal').classList.add('hidden'), 300);
+  }
+
+  // =========== LAB RESULTS ===========
+  let currentLabUserId = null;
+  let currentLabType = 'epigenetic';
+  let currentLabPeriod = 'pre';
+
+  function setLabPeriod(period) {
+    currentLabPeriod = period;
+    document.querySelectorAll('.lab-period-btn').forEach(btn => {
+      const p = btn.dataset.period;
+      if (p === 'pre') {
+        btn.className = `lab-period-btn flex-1 h-9 rounded-xl text-[11px] font-black border-2 transition-all ${period === 'pre' ? 'border-emerald-500 bg-emerald-100 text-emerald-800' : 'border-slate-200 bg-white text-slate-500'}`;
+      } else {
+        btn.className = `lab-period-btn flex-1 h-9 rounded-xl text-[11px] font-black border-2 transition-all ${period === 'post' ? 'border-violet-500 bg-violet-100 text-violet-800' : 'border-slate-200 bg-white text-slate-500'}`;
+      }
+    });
+  }
+
+  function setLabType(type) {
+    currentLabType = type;
+    const styles = {
+      epigenetic: { active: 'border-violet-400 bg-violet-100 text-violet-700', inactive: 'border-slate-200 bg-white text-slate-500' },
+      inbody:     { active: 'border-sky-400 bg-sky-100 text-sky-700',           inactive: 'border-slate-200 bg-white text-slate-500' },
+      other:      { active: 'border-slate-400 bg-slate-100 text-slate-700',     inactive: 'border-slate-200 bg-white text-slate-500' }
+    };
+    document.querySelectorAll('.lab-type-btn').forEach(btn => {
+      const t = btn.dataset.labType;
+      btn.className = `lab-type-btn flex-1 h-9 rounded-xl text-[11px] font-black border-2 transition-all ${t === type ? styles[type].active : styles[t].inactive}`;
+    });
+    // อัพเดท numeric value input
+    const wrap = document.getElementById('labNumericWrap');
+    const icon = document.getElementById('labNumericIcon');
+    const unit = document.getElementById('labNumericUnit');
+    const input = document.getElementById('labNumericValue');
+    const optHint = document.getElementById('labFileOptional');
+    if (type === 'epigenetic') {
+      wrap.className = 'bg-violet-50 border border-violet-200 rounded-xl px-3 py-2.5 flex items-center gap-2';
+      icon.textContent = '🧬'; unit.textContent = 'ปี'; input.placeholder = 'Epigenetic Age (ปี) — จำเป็น';
+      if (optHint) optHint.textContent = '(ไม่บังคับ)';
+    } else if (type === 'inbody') {
+      wrap.className = 'bg-sky-50 border border-sky-200 rounded-xl px-3 py-2.5 flex items-center gap-2';
+      icon.textContent = '⚖️'; unit.textContent = 'คะแนน'; input.placeholder = 'InBody Score (คะแนน) — จำเป็น';
+      if (optHint) optHint.textContent = '(ไม่บังคับ)';
+    } else {
+      wrap.className = 'bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-2 opacity-40';
+      icon.textContent = '📄'; unit.textContent = ''; input.placeholder = 'ไม่ใช้ค่าตัวเลข';
+      if (optHint) optHint.textContent = '(บังคับ)';
+    }
+  }
+
+  async function openLabModal(userId, userName) {
+    currentLabUserId = userId;
+    setLabType('epigenetic');
+    setLabPeriod('pre');
+    document.getElementById('labModalTitle').textContent = `ผลแลป — ${userName}`;
+    document.getElementById('labModal').classList.remove('hidden');
+    document.getElementById('labModalBackdrop').style.opacity = '1';
+    document.getElementById('labModalSheet').style.transform = 'translateX(0)';
+    await loadLabs(userId);
+    lucide.createIcons();
+  }
+
+  function closeLabModal() {
+    document.getElementById('labModalSheet').style.transform = 'translateX(100%)';
+    document.getElementById('labModalBackdrop').style.opacity = '0';
+    setTimeout(() => document.getElementById('labModal').classList.add('hidden'), 300);
+  }
+
+  async function loadLabs(userId) {
+    const list = document.getElementById('labList');
+    list.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs">กำลังโหลด...</div>';
+    try {
+      const res = await fetch(`/admin/get_labs/${userId}`);
+      const labs = await res.json();
+      if (!labs.length) {
+        list.innerHTML = '<div class="text-center py-10 flex flex-col items-center gap-3"><div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center"><i data-lucide="flask-conical" class="w-5 h-5 text-slate-400"></i></div><p class="text-sm text-slate-400 font-medium">ยังไม่มีผลแลป</p></div>';
+        lucide.createIcons();
+        return;
+      }
+      const TYPE_CFG = {
+        epigenetic: { label: '🧬 Epigenetic', cls: 'bg-violet-50 text-violet-600 border-violet-200' },
+        inbody:     { label: '⚖️ InBody',     cls: 'bg-sky-50 text-sky-600 border-sky-200' },
+        other:      { label: '📄 อื่นๆ',       cls: 'bg-slate-100 text-slate-500 border-slate-200' }
+      };
+      const PERIOD_CFG = {
+        pre:  { label: 'ก่อนเข้าร่วมโปรแกรม',  cls: 'bg-emerald-50 text-emerald-700 border-emerald-300' },
+        post: { label: 'หลังเข้าร่วมโปรแกรม', cls: 'bg-violet-50 text-violet-700 border-violet-300' }
+      };
+
+      function renderLabCard(lab) {
+        const isImg = /\.(png|jpg|jpeg|webp|heic)$/i.test(lab.filename || '');
+        const isPdf = /\.pdf$/i.test(lab.filename || '');
+        const dateStr = new Date(lab.uploaded_at).toLocaleDateString('th-TH', {day:'numeric', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit'});
+        const tc = TYPE_CFG[lab.lab_type] || TYPE_CFG.other;
+        const pc = PERIOD_CFG[lab.period] || PERIOD_CFG.pre;
+
+        let fileSection = '';
+        if (lab.value_only) {
+          const valLabel = lab.lab_type === 'epigenetic' ? 'Epigenetic Age' : lab.lab_type === 'inbody' ? 'InBody Score' : 'ค่าผลแลป';
+          fileSection = `<div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-100">
+            <span class="text-sm">${lab.lab_type === 'epigenetic' ? '🧬' : '⚖️'}</span>
+            <span class="text-xs font-semibold text-slate-500">${valLabel} (ค่าตัวเลขเท่านั้น)</span>
+          </div>`;
+        } else if (isImg) {
+          fileSection = `<a href="${lab.url}" target="_blank"><img src="${lab.url}" class="w-full h-36 object-cover hover:opacity-90 transition-opacity" alt="${lab.original_name}"></a>`;
+        }
+
+        const fileLink = !lab.value_only ? `<a href="${lab.url}" target="_blank" class="text-xs font-bold text-sky-600 hover:underline truncate block">
+          ${isPdf ? '📄 ' : '🖼️ '}${lab.original_name}
+        </a>` : `<span class="text-xs text-slate-400 italic">ไม่มีไฟล์แนบ</span>`;
+
+        return `<div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm" id="lab-item-${lab.id}">
+          ${fileSection}
+          <div class="p-3">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                  <span class="text-[10px] font-black px-2 py-0.5 rounded-full border ${pc.cls}">📋 ${pc.label}</span>
+                  <span class="text-[10px] font-black px-2 py-0.5 rounded-full border ${tc.cls}">${tc.label}</span>
+                </div>
+                ${fileLink}
+                ${lab.notes ? `<p class="text-[11px] text-slate-500 mt-0.5">${lab.notes}</p>` : ''}
+                <p class="text-[10px] text-slate-400 mt-1">${dateStr}</p>
+              </div>
+              <button onclick="deleteLab(${lab.id})" class="shrink-0 w-7 h-7 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg flex items-center justify-center transition-colors">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      // Group by period (pre first, then post)
+      const preItems  = labs.filter(l => (l.period || 'pre') === 'pre');
+      const postItems = labs.filter(l => (l.period || 'pre') === 'post');
+      let html = '';
+      if (preItems.length) {
+        html += `<div class="text-[10px] font-black text-emerald-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5"><span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>ก่อนเข้าร่วมโปรแกรม</div>`;
+        html += preItems.map(renderLabCard).join('');
+      }
+      if (postItems.length) {
+        html += `<div class="text-[10px] font-black text-violet-700 uppercase tracking-wider mt-3 mb-1.5 flex items-center gap-1.5"><span class="inline-block w-2 h-2 rounded-full bg-violet-400"></span>หลังเข้าร่วมโปรแกรม</div>`;
+        html += postItems.map(renderLabCard).join('');
+      }
+      list.innerHTML = html;
+      lucide.createIcons();
+    } catch(e) {
+      list.innerHTML = '<div class="text-center py-4 text-red-400 text-xs">โหลดไม่สำเร็จ</div>';
+    }
+  }
+
+  async function uploadLab() {
+    const fileInput = document.getElementById('labFileInput');
+    const notes = document.getElementById('labNotes').value.trim();
+    const btn = document.getElementById('labUploadBtn');
+    const numericVal = document.getElementById('labNumericValue').value.trim();
+    const hasFile = fileInput.files[0];
+
+    // Epigenetic / InBody: ต้องมีค่าตัวเลขอย่างน้อย (ไฟล์เป็นตัวเลือก)
+    // Other: ต้องมีไฟล์
+    if (currentLabType === 'other' && !hasFile) {
+      alert('กรุณาเลือกไฟล์สำหรับประเภท "อื่นๆ"'); return;
+    }
+    if ((currentLabType === 'epigenetic' || currentLabType === 'inbody') && !numericVal && !hasFile) {
+      alert('กรุณากรอกค่าตัวเลข หรือแนบไฟล์อย่างน้อย 1 อย่าง'); return;
+    }
+
+    const form = new FormData();
+    form.append('user_id', currentLabUserId);
+    if (hasFile) form.append('lab_file', fileInput.files[0]);
+    form.append('notes', notes);
+    form.append('lab_type', currentLabType);
+    form.append('period', currentLabPeriod);
+    if (numericVal) form.append('numeric_value', numericVal);
+
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="animate-spin w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> กำลังอัพโหลด...';
+
+    try {
+      const res = await fetch('/admin/upload_lab', { method: 'POST', body: form });
+      const d = await res.json();
+      if (d.success) {
+        fileInput.value = '';
+        document.getElementById('labNotes').value = '';
+        document.getElementById('labNumericValue').value = '';
+        document.getElementById('labFileLabel').textContent = 'เลือกไฟล์...';
+        await loadLabs(currentLabUserId);
+      } else {
+        alert(d.error || 'อัพโหลดไม่สำเร็จ');
+      }
+    } catch(e) {
+      alert('เกิดข้อผิดพลาด');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="upload" class="w-4 h-4"></i> อัพโหลด';
+      lucide.createIcons();
+    }
+  }
+
+  async function deleteLab(labId) {
+    if (!confirm('ยืนยันลบผลแลปนี้?')) return;
+    const form = new FormData();
+    form.append('lab_id', labId);
+    const res = await fetch('/admin/delete_lab', { method: 'POST', body: form });
+    const d = await res.json();
+    if (d.success) {
+      document.getElementById(`lab-item-${labId}`)?.remove();
+      if (!document.getElementById('labList').querySelector('[id^="lab-item-"]')) {
+        await loadLabs(currentLabUserId);
+      }
+    }
+  }
+
+  function labFileChanged(input) {
+    const label = document.getElementById('labFileLabel');
+    const optHint = document.getElementById('labFileOptional');
+    if (input.files[0]) {
+      label.innerHTML = input.files[0].name + (optHint ? ` <span id="labFileOptional" class="text-[10px] text-emerald-500">✓ เลือกแล้ว</span>` : '');
+    } else {
+      const hintText = currentLabType === 'other' ? '(บังคับ)' : '(ไม่บังคับ)';
+      label.innerHTML = `แนบไฟล์ PDF / รูปภาพ <span id="labFileOptional" class="text-[10px] text-slate-400">${hintText}</span>`;
+    }
+  }
+</script>
+
+<!-- =========== REAL-TIME PRESENCE POLLING =========== -->
+<script>
+  /* ── Save _t token from URL to localStorage (admin panel is standalone) ── */
+  (function saveToken() {
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get('_t');
+    if (t) localStorage.setItem('auth_token', t);
+  })();
+
+  /* ── Fetch interceptor: inject X-Auth-Token on all same-origin requests ── */
+  (function patchFetch() {
+    const _orig = window.fetch;
+    window.fetch = function(input, init) {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return _orig(input, init);
+      try {
+        const url = typeof input === 'string' ? input : input.url;
+        if (url && (!url.startsWith('http') || new URL(url, location.origin).origin === location.origin)) {
+          init = init || {};
+          init.headers = Object.assign({}, init.headers || {}, {'X-Auth-Token': token});
+        }
+      } catch(e) {}
+      return _orig(input, init);
+    };
+  })();
+
+  /* ── Token relay: inject ?_t= into all internal links so sessions survive ── */
+  (function injectAuthToken() {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    const origin = window.location.origin;
+    function addToken(url) {
+      try {
+        const u = new URL(url, origin);
+        if (u.origin !== origin) return url;
+        if (u.pathname.startsWith('/static') || u.pathname.startsWith('/api')) return url;
+        u.searchParams.set('_t', token);
+        return u.pathname + u.search + u.hash;
+      } catch(e) { return url; }
+    }
+    function patch() {
+      document.querySelectorAll('a[href]').forEach(a => {
+        const h = a.getAttribute('href');
+        if (h && !h.startsWith('#') && !h.startsWith('javascript') && !h.startsWith('mailto')) {
+          a.setAttribute('href', addToken(h));
+        }
+      });
+      document.querySelectorAll('form[action]').forEach(form => {
+        const action = form.getAttribute('action');
+        if (action && !action.startsWith('javascript')) {
+          form.setAttribute('action', addToken(action));
+        }
+        if (!form.querySelector('input[name="_t"]')) {
+          const inp = document.createElement('input');
+          inp.type = 'hidden'; inp.name = '_t'; inp.value = token;
+          form.appendChild(inp);
+        }
+      });
+    }
+    patch();
+    const obs = new MutationObserver(patch);
+    obs.observe(document.body, { childList: true, subtree: true });
+  })();
+
+  const PRESENCE_COLORS = {
+    online:  { dot: 'bg-emerald-500', label: 'text-emerald-600', pulse: true  },
+    away:    { dot: 'bg-amber-400',   label: 'text-amber-500',   pulse: false },
+    idle:    { dot: 'bg-orange-400',  label: 'text-orange-500',  pulse: false },
+    offline: { dot: 'bg-slate-300',   label: 'text-slate-400',   pulse: false }
+  };
+
+  // เก็บ timestamp ของแต่ละ user เพื่อให้ client คำนวณ label เอง
+  const _presenceMap = {};   // uid → { last_seen_unix, never_seen }
+
+  function _computeStatus(lastUnix) {
+    if (!lastUnix) return { status: 'offline', label: 'ยังไม่เคยเข้าใช้' };
+    const diffSec = Math.floor(Date.now() / 1000) - lastUnix;
+    if (diffSec < 45)      return { status: 'online',  label: 'ออนไลน์' };
+    if (diffSec < 60)      return { status: 'away',    label: 'เพิ่งออกไป' };
+    if (diffSec < 3600) {
+      const m = Math.floor(diffSec / 60);
+      return { status: diffSec < 600 ? 'away' : 'idle', label: `${m} นาทีที่แล้ว` };
+    }
+    if (diffSec < 86400) {
+      const h = Math.floor(diffSec / 3600);
+      return { status: 'offline', label: `${h} ชั่วโมงที่แล้ว` };
+    }
+    const d = Math.floor(diffSec / 86400);
+    return { status: 'offline', label: `${d} วันที่แล้ว` };
+  }
+
+  function _applyPresence(uid, status, label) {
+    const cfg = PRESENCE_COLORS[status] || PRESENCE_COLORS.offline;
+
+    // อัปเดตจุดสี (dot บนรูปโปรไฟล์)
+    document.querySelectorAll(`[data-presence-uid="${uid}"]`).forEach(dot => {
+      dot.className = `absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ${cfg.dot} border-2 border-white ${cfg.pulse ? 'animate-pulse' : ''}`;
+      dot.title = label;
+    });
+
+    // อัปเดต cell "ใช้งานล่าสุด" ในทุกตาราง (overview + users tab)
+    let dotHtml, bgCls;
+    if (status === 'online') {
+      dotHtml = `<span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>`;
+      bgCls   = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+    } else if (status === 'away') {
+      dotHtml = `<span class="w-1.5 h-1.5 bg-amber-400 rounded-full"></span>`;
+      bgCls   = 'bg-amber-50 text-amber-600 border border-amber-200';
+    } else if (status === 'idle') {
+      dotHtml = `<span class="w-1.5 h-1.5 bg-orange-400 rounded-full"></span>`;
+      bgCls   = 'bg-orange-50 text-orange-600 border border-orange-200';
+    } else {
+      dotHtml = `<span class="w-1.5 h-1.5 bg-slate-300 rounded-full"></span>`;
+      bgCls   = 'bg-slate-100 text-slate-500';
+    }
+    document.querySelectorAll(`[data-presence-cell-uid="${uid}"]`).forEach(cell => {
+      cell.innerHTML = `<span class="inline-flex items-center gap-1 ${bgCls} text-[10px] font-black px-2.5 py-1 rounded-full">${dotHtml}<span>${label}</span></span>`;
+    });
+  }
+
+  function _refreshAllLabels() {
+    let onlineCount = 0;
+    Object.entries(_presenceMap).forEach(([uid, info]) => {
+      const { status, label } = info.never_seen
+        ? { status: 'offline', label: 'ยังไม่เคยเข้าใช้' }
+        : _computeStatus(info.last_seen_unix);
+      if (status === 'online') onlineCount++;
+      _applyPresence(uid, status, label);
+    });
+    const banner = document.getElementById('liveOnlineBanner');
+    const countText = document.getElementById('onlineCountText');
+    if (banner && countText) {
+      if (onlineCount > 0) {
+        banner.classList.remove('hidden'); banner.classList.add('flex');
+        countText.textContent = `${onlineCount} คน`;
+      } else {
+        banner.classList.add('hidden'); banner.classList.remove('flex');
+      }
+    }
+  }
+
+  async function fetchPresence() {
+    try {
+      const res = await fetch('/api/user_presence');
+      if (!res.ok) return;
+      const data = await res.json();
+      data.forEach(u => {
+        _presenceMap[u.id] = {
+          last_seen_unix: u.last_seen_unix || null,
+          never_seen: !u.last_seen
+        };
+      });
+      _refreshAllLabels();
+    } catch(e) {}
+  }
+
+  // poll API ทุก 10 วินาที เพื่อรับ last_seen ใหม่จากเซิร์ฟเวอร์
+  fetchPresence();
+  setInterval(fetchPresence, 10000);
+
+  // อัปเดต label ทุก 5 วินาทีโดยไม่ต้อง call API (real-time countdown)
+  setInterval(_refreshAllLabels, 5000);
+
+  // =========== EDIT NAME ===========
+  function openEditNameModal(userId, currentName, currentLastName) {
+    document.getElementById('editNameUserId').value = userId;
+    document.getElementById('editNameInput').value = currentName || '';
+    document.getElementById('editLastNameInput').value = currentLastName || '';
+    document.getElementById('editNameSub').textContent = `ID: ${userId}`;
+    document.getElementById('editNameModal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('editNameInput').focus(), 100);
+    lucide.createIcons();
+  }
+
+  function closeEditNameModal() {
+    document.getElementById('editNameModal').classList.add('hidden');
+  }
+
+  async function saveEditName() {
+    const userId = document.getElementById('editNameUserId').value;
+    const newName = document.getElementById('editNameInput').value.trim();
+    const newLastName = document.getElementById('editLastNameInput').value.trim();
+    if (!newName) { alert('กรุณากรอกชื่อ'); return; }
+
+    const btn = document.getElementById('editNameSaveBtn');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> กำลังบันทึก...';
+    btn.disabled = true;
+    lucide.createIcons();
+
+    try {
+      const res = await fetch('/admin/update_user_name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: parseInt(userId), name: newName, last_name: newLastName })
+      });
+      const data = await res.json();
+      if (data.success) {
+        closeEditNameModal();
+        const fullDisplay = newLastName ? `${newName} ${newLastName}` : newName;
+        // อัปเดตชื่อในตารางโดยไม่ต้องโหลดหน้าใหม่
+        const rows = document.querySelectorAll('.user-row');
+        rows.forEach(row => {
+          const btn = row.querySelector(`[onclick*="openEditNameModal(${userId}"]`);
+          if (btn) {
+            const nameEl = row.querySelector('p.font-bold');
+            if (nameEl) nameEl.textContent = fullDisplay;
+            btn.setAttribute('onclick', `openEditNameModal(${userId}, '${newName.replace(/'/g, "\\'")}', '${newLastName.replace(/'/g, "\\'")}')`);
+          }
+        });
+        // แสดง toast
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-6 right-6 z-[999] bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl text-sm font-bold flex items-center gap-2 animate-bounce';
+        toast.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> อัปเดตชื่อ "${fullDisplay}" เรียบร้อย`;
+        document.body.appendChild(toast);
+        lucide.createIcons();
+        setTimeout(() => toast.remove(), 3000);
+      } else {
+        alert(data.error || 'เกิดข้อผิดพลาด');
+      }
+    } catch (e) {
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+    } finally {
+      btn.innerHTML = orig; btn.disabled = false; lucide.createIcons();
+    }
+  }
+
+  // Enter key saves edit
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !document.getElementById('editNameModal').classList.contains('hidden')) {
+      saveEditName();
+    }
+    if (e.key === 'Escape' && !document.getElementById('editNameModal').classList.contains('hidden')) {
+      closeEditNameModal();
+    }
+  });
+</script>
+
+<!-- =========== EDIT NAME MODAL =========== -->
+<div id="editNameModal" class="hidden fixed inset-0 z-[400] flex items-center justify-center p-4">
+  <div onclick="closeEditNameModal()" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm z-10 p-6">
+    <div class="flex items-center gap-3 mb-5">
+      <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+        <i data-lucide="pencil" class="w-5 h-5 text-emerald-600"></i>
+      </div>
+      <div>
+        <h3 class="font-black text-slate-900 text-base">แก้ไขชื่อผู้เข้าร่วม</h3>
+        <p class="text-xs text-slate-400 mt-0.5" id="editNameSub">กรอกชื่อใหม่</p>
+      </div>
+    </div>
+    <input type="hidden" id="editNameUserId">
+    <div class="mb-3">
+      <label class="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2">ชื่อจริง <span class="text-rose-400">*</span></label>
+      <input type="text" id="editNameInput"
+        class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 font-bold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+        placeholder="ชื่อจริง">
+    </div>
+    <div class="mb-4">
+      <label class="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2">นามสกุล</label>
+      <input type="text" id="editLastNameInput"
+        class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 font-bold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+        placeholder="นามสกุล">
+    </div>
+    <div class="flex gap-3">
+      <button onclick="closeEditNameModal()" class="flex-1 h-11 bg-slate-100 text-slate-600 font-black text-sm rounded-xl hover:bg-slate-200 transition-colors">ยกเลิก</button>
+      <button onclick="saveEditName()" id="editNameSaveBtn" class="flex-1 h-11 bg-emerald-600 text-white font-black text-sm rounded-xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
+        <i data-lucide="check" class="w-4 h-4"></i> บันทึก
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- =========== LAB RESULTS SLIDE-OVER MODAL =========== -->
+<div id="labModal" class="hidden fixed inset-0 z-[300] flex justify-end">
+  <div id="labModalBackdrop" onclick="closeLabModal()" style="opacity:0;transition:opacity 0.3s;" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+  <div id="labModalSheet" style="transform:translateX(100%);transition:transform 0.35s cubic-bezier(0.22,1,0.36,1);width:min(480px,100%);" class="relative h-full bg-white shadow-2xl flex flex-col z-10 overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-white sticky top-0 z-10">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 bg-sky-100 rounded-xl flex items-center justify-center">
+          <i data-lucide="flask-conical" class="w-4 h-4 text-sky-600"></i>
+        </div>
+        <div>
+          <p id="labModalTitle" class="font-black text-slate-900 text-sm">ผลแลป</p>
+          <p class="text-[10px] text-slate-400 font-medium">Laboratory Results</p>
+        </div>
+      </div>
+      <button onclick="closeLabModal()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center justify-center text-slate-600 transition-colors">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Upload form -->
+    <div class="px-5 py-4 border-b border-slate-100 bg-slate-50">
+      <p class="text-xs font-black text-slate-700 uppercase tracking-wider mb-3">อัพโหลดผลแลปใหม่</p>
+      <div class="space-y-2.5">
+        <!-- Period selector (Pre / Post) -->
+        <div class="flex gap-2 mb-1">
+          <button type="button" data-period="pre" onclick="setLabPeriod('pre')"
+            class="lab-period-btn flex-1 h-9 rounded-xl text-[11px] font-black border-2 transition-all border-emerald-400 bg-emerald-50 text-emerald-700">
+            ก่อนเข้าร่วมโปรแกรม
+          </button>
+          <button type="button" data-period="post" onclick="setLabPeriod('post')"
+            class="lab-period-btn flex-1 h-9 rounded-xl text-[11px] font-black border-2 transition-all border-slate-200 bg-white text-slate-500">
+            หลังเข้าร่วมโปรแกรม
+          </button>
+        </div>
+        <!-- Lab type selector -->
+        <div class="flex gap-2">
+          <button type="button" data-lab-type="epigenetic" onclick="setLabType('epigenetic')"
+            class="lab-type-btn flex-1 h-9 rounded-xl text-[11px] font-black border-2 transition-all border-violet-200 bg-violet-50 text-violet-600">
+            🧬 Epigenetic
+          </button>
+          <button type="button" data-lab-type="inbody" onclick="setLabType('inbody')"
+            class="lab-type-btn flex-1 h-9 rounded-xl text-[11px] font-black border-2 transition-all border-slate-200 bg-white text-slate-500">
+            ⚖️ InBody
+          </button>
+          <button type="button" data-lab-type="other" onclick="setLabType('other')"
+            class="lab-type-btn flex-1 h-9 rounded-xl text-[11px] font-black border-2 transition-all border-slate-200 bg-white text-slate-500">
+            📄 อื่นๆ
+          </button>
+        </div>
+        <!-- Numeric value input (ปรากฎเฉพาะ epigenetic/inbody) -->
+        <div id="labNumericWrap" class="bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
+          <span id="labNumericIcon" class="text-sm">🧬</span>
+          <input type="number" id="labNumericValue" placeholder="กรอกค่าตัวเลข (ปี/คะแนน)" step="0.1" min="0"
+            class="flex-1 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none bg-transparent">
+          <span id="labNumericUnit" class="text-[11px] text-slate-400 font-bold shrink-0">ปี</span>
+        </div>
+        <label class="flex items-center gap-2 w-full h-11 bg-white border-2 border-dashed border-slate-300 hover:border-sky-400 rounded-xl px-3 cursor-pointer transition-colors group">
+          <i data-lucide="paperclip" class="w-4 h-4 text-slate-400 group-hover:text-sky-500 shrink-0 transition-colors"></i>
+          <span id="labFileLabel" class="text-sm text-slate-400 group-hover:text-sky-600 font-medium truncate">แนบไฟล์ PDF / รูปภาพ <span id="labFileOptional" class="text-[10px] text-slate-400">(ไม่บังคับ)</span></span>
+          <input type="file" id="labFileInput" accept=".pdf,.png,.jpg,.jpeg,.webp,.heic" onchange="labFileChanged(this)" class="hidden">
+        </label>
+        <input type="text" id="labNotes" placeholder="บันทึกเพิ่มเติม (ไม่บังคับ)" class="w-full h-10 bg-white border border-slate-200 rounded-xl px-3 text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400">
+        <button id="labUploadBtn" onclick="uploadLab()" class="w-full h-10 bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm shadow-sky-600/20">
+          <i data-lucide="upload" class="w-4 h-4"></i> อัพโหลด
+        </button>
+      </div>
+    </div>
+
+    <!-- Lab results list -->
+    <div class="flex-1 overflow-y-auto px-5 py-4">
+      <p class="text-xs font-black text-slate-700 uppercase tracking-wider mb-3">ผลแลปที่บันทึกไว้</p>
+      <div id="labList" class="space-y-3">
+        <div class="text-center py-6 text-slate-400 text-xs">กำลังโหลด...</div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- =========== CERTIFICATE JS =========== -->
+<script>
+  let currentCertUserId = null;
+
+  async function openCertModal(userId, userName) {
+    currentCertUserId = userId;
+    document.getElementById('certModalTitle').textContent = `เกียรติบัตร — ${userName}`;
+    document.getElementById('certModal').classList.remove('hidden');
+    document.getElementById('certModalBackdrop').style.opacity = '1';
+    document.getElementById('certModalSheet').style.transform = 'translateX(0)';
+    await loadCerts(userId);
+    lucide.createIcons();
+  }
+
+  function closeCertModal() {
+    document.getElementById('certModalSheet').style.transform = 'translateX(100%)';
+    document.getElementById('certModalBackdrop').style.opacity = '0';
+    setTimeout(() => document.getElementById('certModal').classList.add('hidden'), 300);
+  }
+
+  async function loadCerts(userId) {
+    const list = document.getElementById('certList');
+    list.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs">กำลังโหลด...</div>';
+    try {
+      const res = await fetch(`/admin/get_certs/${userId}`);
+      const certs = await res.json();
+      if (!certs.length) {
+        list.innerHTML = '<div class="text-center py-10 flex flex-col items-center gap-3"><div class="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center"><i data-lucide="award" class="w-5 h-5 text-amber-400"></i></div><p class="text-sm text-slate-400 font-medium">ยังไม่มีเกียรติบัตร</p></div>';
+        lucide.createIcons();
+        return;
+      }
+      list.innerHTML = certs.map(cert => {
+        const isImg = /\.(png|jpg|jpeg|webp)$/i.test(cert.filename);
+        const isPdf = /\.pdf$/i.test(cert.filename);
+        const dateStr = new Date(cert.issued_at).toLocaleDateString('th-TH', {day:'numeric', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit'});
+        return `<div class="border border-amber-100 rounded-xl overflow-hidden bg-white shadow-sm" id="cert-item-${cert.id}">
+          ${isImg ? `<a href="${cert.url}" target="_blank"><img src="${cert.url}" class="w-full h-40 object-cover hover:opacity-90 transition-opacity" alt="${cert.original_name}"></a>` : ''}
+          <div class="p-3">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="text-[10px] font-black px-2 py-0.5 rounded-full border bg-amber-50 text-amber-600 border-amber-200">🏆 เกียรติบัตร</span>
+                </div>
+                <a href="${cert.url}" target="_blank" download class="text-xs font-bold text-amber-600 hover:underline truncate block">
+                  ${isPdf ? '📄 ' : '🖼️ '}${cert.original_name}
+                </a>
+                ${cert.notes ? `<p class="text-[11px] text-slate-500 mt-0.5">${cert.notes}</p>` : ''}
+                <p class="text-[10px] text-slate-400 mt-1">ออกวันที่ ${dateStr}</p>
+              </div>
+              <button onclick="deleteCert(${cert.id})" class="shrink-0 w-7 h-7 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg flex items-center justify-center transition-colors">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+      lucide.createIcons();
+    } catch(e) {
+      list.innerHTML = '<div class="text-center py-4 text-red-400 text-xs">โหลดไม่สำเร็จ</div>';
+    }
+  }
+
+  async function uploadCert() {
+    const fileInput = document.getElementById('certFileInput');
+    const notes = document.getElementById('certNotes').value.trim();
+    const btn = document.getElementById('certUploadBtn');
+    if (!fileInput.files[0]) { alert('กรุณาเลือกไฟล์เกียรติบัตร'); return; }
+
+    const form = new FormData();
+    form.append('user_id', currentCertUserId);
+    form.append('cert_file', fileInput.files[0]);
+    form.append('notes', notes);
+
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="animate-spin w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> กำลังอัพโหลด...';
+
+    try {
+      const res = await fetch('/admin/upload_cert', { method: 'POST', body: form });
+      const d = await res.json();
+      if (d.success) {
+        fileInput.value = '';
+        document.getElementById('certNotes').value = '';
+        document.getElementById('certFileLabel').textContent = 'เลือกไฟล์...';
+        await loadCerts(currentCertUserId);
+      } else {
+        alert(d.error || 'อัพโหลดไม่สำเร็จ');
+      }
+    } catch(e) {
+      alert('เกิดข้อผิดพลาด');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="upload" class="w-4 h-4"></i> อัพโหลด';
+      lucide.createIcons();
+    }
+  }
+
+  async function deleteCert(certId) {
+    if (!confirm('ยืนยันลบเกียรติบัตรนี้?')) return;
+    const form = new FormData();
+    form.append('cert_id', certId);
+    const res = await fetch('/admin/delete_cert', { method: 'POST', body: form });
+    const d = await res.json();
+    if (d.success) {
+      document.getElementById(`cert-item-${certId}`)?.remove();
+      if (!document.getElementById('certList').querySelector('[id^="cert-item-"]')) {
+        await loadCerts(currentCertUserId);
+      }
+    }
+  }
+
+  function certFileChanged(input) {
+    const label = document.getElementById('certFileLabel');
+    label.textContent = input.files[0] ? input.files[0].name : 'เลือกไฟล์...';
+  }
+</script>
+
+<!-- =========== CERTIFICATE SLIDE-OVER MODAL =========== -->
+<!-- ============================================================ -->
+<!-- POSTTEST ANSWERS MODAL -->
+<!-- ============================================================ -->
+<div id="posttestModal" class="hidden fixed inset-0 z-[300] flex justify-end">
+  <div id="posttestModalBackdrop" onclick="closePosttestModal()" style="opacity:0;transition:opacity 0.3s;" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+  <div id="posttestModalSheet" style="transform:translateX(100%);transition:transform 0.35s cubic-bezier(0.22,1,0.36,1);width:min(560px,100%);" class="relative h-full bg-white shadow-2xl flex flex-col z-10 overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-violet-100 rounded-xl flex items-center justify-center">
+          <i data-lucide="file-text" class="w-4 h-4 text-violet-600"></i>
+        </div>
+        <div>
+          <p id="posttestModalTitle" class="font-black text-slate-900 text-sm">คำตอบแบบสอบถาม</p>
+          <p class="text-[10px] text-slate-400 font-medium">Pre-test vs Post-test</p>
+        </div>
+      </div>
+      <button onclick="closePosttestModal()" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center transition-colors">
+        <i data-lucide="x" class="w-4 h-4 text-slate-600"></i>
+      </button>
+    </div>
+    <!-- Body -->
+    <div class="flex-1 overflow-y-auto p-5 space-y-4" id="posttestModalBody">
+      <div class="flex items-center justify-center h-40">
+        <div class="animate-spin w-8 h-8 border-4 border-slate-200 border-t-violet-500 rounded-full"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="certModal" class="hidden fixed inset-0 z-[300] flex justify-end">
+  <div id="certModalBackdrop" onclick="closeCertModal()" style="opacity:0;transition:opacity 0.3s;" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+  <div id="certModalSheet" style="transform:translateX(100%);transition:transform 0.35s cubic-bezier(0.22,1,0.36,1);width:min(480px,100%);" class="relative h-full bg-white shadow-2xl flex flex-col z-10 overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 py-4 border-b border-amber-100 bg-amber-50 sticky top-0 z-10">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center">
+          <i data-lucide="award" class="w-4 h-4 text-amber-600"></i>
+        </div>
+        <div>
+          <p id="certModalTitle" class="font-black text-slate-900 text-sm">เกียรติบัตร</p>
+          <p class="text-[10px] text-amber-500 font-medium">Certificate of Achievement</p>
+        </div>
+      </div>
+      <button onclick="closeCertModal()" class="w-8 h-8 bg-white hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-600 transition-colors shadow-sm">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Upload form -->
+    <div class="px-5 py-4 border-b border-slate-100 bg-slate-50">
+      <p class="text-xs font-black text-slate-700 uppercase tracking-wider mb-3">แนบเกียรติบัตรใหม่</p>
+      <div class="space-y-2.5">
+        <label class="flex items-center gap-2 w-full h-11 bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 rounded-xl px-3 cursor-pointer transition-colors group">
+          <i data-lucide="paperclip" class="w-4 h-4 text-amber-400 shrink-0"></i>
+          <span id="certFileLabel" class="text-sm text-slate-400 group-hover:text-amber-600 font-medium truncate">เลือกไฟล์ PDF หรือรูปภาพ...</span>
+          <input type="file" id="certFileInput" accept=".pdf,.png,.jpg,.jpeg,.webp" onchange="certFileChanged(this)" class="hidden">
+        </label>
+        <input type="text" id="certNotes" placeholder="ชื่อเกียรติบัตร / หมายเหตุ (ไม่บังคับ)" class="w-full h-10 bg-white border border-slate-200 rounded-xl px-3 text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400">
+        <button id="certUploadBtn" onclick="uploadCert()" class="w-full h-10 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm shadow-amber-500/20">
+          <i data-lucide="upload" class="w-4 h-4"></i> แนบเกียรติบัตร
+        </button>
+      </div>
+    </div>
+
+    <!-- Cert list -->
+    <div class="flex-1 overflow-y-auto px-5 py-4">
+      <p class="text-xs font-black text-slate-700 uppercase tracking-wider mb-3">เกียรติบัตรที่ออกแล้ว</p>
+      <div id="certList" class="space-y-3">
+        <div class="text-center py-6 text-slate-400 text-xs">กำลังโหลด...</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

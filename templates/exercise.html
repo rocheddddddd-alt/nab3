@@ -1,0 +1,759 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+    .big-time { font-size: 5.5rem; font-weight: 900; color: #f9fafb; letter-spacing: -0.05em; font-family: 'Inter', monospace; }
+    .timer-dark { background: linear-gradient(145deg, #111827, #0D1117); border: 1px solid rgba(255,255,255,0.06); border-radius: 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+    .tab-active { background: #064e3b; color: white; box-shadow: 0 4px 12px rgba(6,78,59,0.35); }
+    .tab-watch-active { background: linear-gradient(135deg, #2563eb, #4f46e5); color: white; box-shadow: 0 4px 12px rgba(37,99,235,0.35); }
+    .tab-history-active { background: #1e293b; color: white; box-shadow: 0 4px 12px rgba(30,41,59,0.35); }
+
+    /* สไตล์ใหม่สำหรับโหมด GPS */
+    .gps-panel { background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid rgba(255,255,255,0.1); border-radius: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); overflow: hidden; }
+    .neon-text-green { color: #10b981; text-shadow: 0 0 15px rgba(16,185,129,0.5); }
+    .neon-text-blue { color: #3b82f6; text-shadow: 0 0 15px rgba(59,130,246,0.5); }
+    .neon-text-rose { color: #f43f5e; text-shadow: 0 0 15px rgba(244,63,94,0.5); }
+    .neon-text-amber { color: #f59e0b; text-shadow: 0 0 15px rgba(245,158,11,0.5); }
+    .stat-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; backdrop-filter: blur(10px); }
+
+    /* แต่งแผนที่ให้ดูสมจริงขึ้น */
+    .leaflet-control-container { display: none !important; }
+    .neon-path { filter: drop-shadow(0 0 4px #10b981); }
+
+    /* GPS Fullscreen Overlay */
+    #gpsFullscreen { transition: opacity 0.35s ease; }
+    #gpsFullscreen.hidden { opacity: 0; pointer-events: none; }
+    .fs-stat-glass {
+        background: rgba(15,23,42,0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="px-4 pt-5 pb-32 flex flex-col min-h-[100dvh] bg-[#F8FAFC]">
+
+    <div class="mb-4 shrink-0 fade-in-up">
+        <h2 class="text-2xl font-black text-slate-900 tracking-tight">บันทึกกิจกรรม</h2>
+        <p class="text-[11px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest">Select Workout Mode</p>
+    </div>
+
+    <div class="flex overflow-x-auto gap-2 pb-4 hide-scrollbar fade-in-up delay-1 shrink-0 snap-x -mx-1 px-1">
+        <button onclick="switchMode('gps')" id="tab-gps" class="snap-start shrink-0 h-[46px] px-5 rounded-[16px] font-black text-sm transition-all flex items-center gap-2 tab-active text-white">
+            <i data-lucide="map-pin" class="w-4 h-4"></i> วิ่ง GPS
+        </button>
+        <button onclick="switchMode('cardio')" id="tab-cardio" class="snap-start shrink-0 h-[46px] px-5 rounded-[16px] font-black text-sm transition-all flex items-center gap-2 bg-white text-slate-500 shadow-sm border border-slate-100">
+            <i data-lucide="heart-pulse" class="w-4 h-4"></i> คาร์ดิโอ
+        </button>
+        <button onclick="switchMode('aerobics')" id="tab-aerobics" class="snap-start shrink-0 h-[46px] px-5 rounded-[16px] font-black text-sm transition-all flex items-center gap-2 bg-white text-slate-500 shadow-sm border border-slate-100">
+            <i data-lucide="music" class="w-4 h-4"></i> แอโรบิก
+        </button>
+        <button onclick="switchMode('ocr')" id="tab-ocr" class="snap-start shrink-0 h-[46px] px-5 rounded-[16px] font-black text-sm transition-all flex items-center gap-2 bg-white text-slate-500 shadow-sm border border-slate-100">
+            <i data-lucide="watch" class="w-4 h-4"></i> สมาร์ทวอทช์
+        </button>
+        <button onclick="switchMode('history')" id="tab-history" class="snap-start shrink-0 h-[46px] px-5 rounded-[16px] font-black text-sm transition-all flex items-center gap-2 bg-white text-slate-500 shadow-sm border border-slate-100">
+            <i data-lucide="clock" class="w-4 h-4"></i> ประวัติ
+        </button>
+    </div>
+
+    <div id="mode-gps" class="activity-mode flex-1 flex flex-col fade-in-up delay-2 gap-3">
+        <!-- Map — full visible, light border, no dark overlay -->
+        <div class="relative rounded-[24px] overflow-hidden border border-slate-200 shadow-sm bg-white" style="height: 240px; min-height: 200px;">
+            <div id="map" class="w-full h-full z-0"></div>
+            <!-- GPS status badge overlaid lightly on top of map -->
+            <div class="absolute top-3 left-3 z-20 flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-sm border border-slate-100">
+                <div id="gpsStatusIcon" class="w-2 h-2 rounded-full bg-slate-400"></div>
+                <span class="text-[10px] font-black text-slate-700">GPS RUN</span>
+                <span id="gpsStatusText" class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">รอสัญญาณ...</span>
+            </div>
+            <div class="absolute top-3 right-3 z-20 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm border border-slate-100">
+                <i data-lucide="satellite" class="w-3.5 h-3.5 text-emerald-500"></i>
+            </div>
+        </div>
+
+        <!-- Distance display -->
+        <div class="bg-white rounded-[24px] border border-slate-100 shadow-sm px-5 py-4 text-center">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">ระยะทาง</p>
+            <div class="flex items-baseline justify-center gap-2">
+                <span id="liveDistance" class="text-[4rem] font-black leading-none tracking-tighter text-blue-600 tabular-nums">0.00</span>
+                <span class="text-sm font-bold text-blue-400">กม.</span>
+            </div>
+        </div>
+
+        <!-- Stats row -->
+        <div class="grid grid-cols-3 gap-3">
+            <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm p-3 text-center">
+                <i data-lucide="timer" class="w-4 h-4 mx-auto mb-1 text-emerald-500"></i>
+                <p id="liveTime" class="text-lg font-black text-slate-900 tabular-nums tracking-tight">00:00</p>
+                <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-0.5">เวลา</p>
+            </div>
+            <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm p-3 text-center">
+                <i data-lucide="flame" class="w-4 h-4 mx-auto mb-1 text-rose-500"></i>
+                <p id="liveCals" class="text-lg font-black text-slate-900 tabular-nums tracking-tight">0</p>
+                <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-0.5">แคลอรี่</p>
+            </div>
+            <div class="bg-white rounded-[20px] border border-slate-100 shadow-sm p-3 text-center">
+                <i data-lucide="footprints" class="w-4 h-4 mx-auto mb-1 text-amber-500"></i>
+                <p id="liveSteps" class="text-lg font-black text-slate-900 tabular-nums tracking-tight">0</p>
+                <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-0.5">ก้าวเดิน</p>
+            </div>
+        </div>
+
+        <!-- Control buttons -->
+        <div class="flex gap-3 items-center justify-center pb-2">
+            <button id="btnStartGPS" onclick="startTracking()" class="w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full shadow-lg shadow-emerald-500/30 flex flex-col items-center justify-center text-white active:scale-95 transition-all group border-4 border-white ring-2 ring-emerald-400/30">
+                <i data-lucide="play" class="w-8 h-8 fill-white ml-1 group-hover:scale-110 transition-transform"></i>
+            </button>
+            <button id="btnStopGPS" onclick="stopTracking()" class="hidden w-20 h-20 bg-gradient-to-br from-rose-500 to-rose-700 rounded-full shadow-lg shadow-rose-500/30 flex flex-col items-center justify-center text-white active:scale-95 transition-all group border-4 border-white ring-2 ring-rose-400/30">
+                <i data-lucide="square" class="w-6 h-6 fill-white group-hover:scale-90 transition-transform"></i>
+            </button>
+            <button id="btnSaveGPS" onclick="submitData('running')" class="hidden flex-1 h-[56px] ml-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full shadow-lg shadow-blue-500/20 text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-all">
+                <i data-lucide="check-circle" class="w-5 h-5"></i> บันทึกผล
+            </button>
+        </div>
+    </div>
+
+
+    <div id="mode-cardio" class="activity-mode hidden flex-1 flex-col fade-in-up delay-2">
+        <div class="timer-dark p-8 flex-1 flex flex-col items-center justify-center relative overflow-hidden mb-4">
+            <div id="bg-glow-cardio" class="absolute inset-0 bg-rose-500/15 blur-3xl opacity-0 transition-opacity duration-1000 pointer-events-none rounded-[28px]"></div>
+            <div id="icon-cardio" class="w-20 h-20 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-full flex items-center justify-center mb-6 relative z-10 transition-transform duration-500">
+                <i data-lucide="heart-pulse" class="w-10 h-10"></i>
+            </div>
+            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 z-10">Cardio Workout</h3>
+            <div class="big-time tabular-nums z-10" id="timeDisplay-cardio">00:00</div>
+            <p class="text-[10px] text-slate-600 mt-2 z-10">นาที : วินาที</p>
+        </div>
+        <div class="grid grid-cols-2 gap-2.5 shrink-0">
+            <button id="btnStart-cardio" onclick="startWorkout('cardio')" class="col-span-2 h-[58px] bg-rose-500 text-white font-black text-base rounded-[20px] shadow-lg shadow-rose-500/25 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                <i data-lucide="play" class="w-5 h-5 fill-white"></i> เริ่มออกกำลังกาย
+            </button>
+            <button id="btnStop-cardio" onclick="stopWorkout('cardio')" class="hidden col-span-2 h-[58px] bg-slate-800 text-white font-black text-base rounded-[20px] flex items-center justify-center gap-2 active:scale-95 transition-all">
+                <i data-lucide="pause" class="w-5 h-5 fill-white"></i> หยุดพัก
+            </button>
+            <button id="btnSave-cardio" onclick="submitData('cardio')" class="hidden col-span-1 h-[58px] bg-emerald-500 text-white font-black text-sm rounded-[20px] shadow-md shadow-emerald-500/25 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                <i data-lucide="check" class="w-5 h-5"></i> บันทึก
+            </button>
+        </div>
+    </div>
+
+    <div id="mode-aerobics" class="activity-mode hidden flex-1 flex-col fade-in-up delay-2">
+        <div class="timer-dark p-8 flex-1 flex flex-col items-center justify-center relative overflow-hidden mb-4">
+            <div id="bg-glow-aerobics" class="absolute inset-0 bg-purple-500/15 blur-3xl opacity-0 transition-opacity duration-1000 pointer-events-none rounded-[28px]"></div>
+            <div id="icon-aerobics" class="w-20 h-20 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-full flex items-center justify-center mb-6 relative z-10 transition-transform duration-500">
+                <i data-lucide="music" class="w-10 h-10"></i>
+            </div>
+            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 z-10">Aerobics</h3>
+            <div class="big-time tabular-nums z-10" id="timeDisplay-aerobics">00:00</div>
+            <p class="text-[10px] text-slate-600 mt-2 z-10">นาที : วินาที</p>
+        </div>
+        <div class="grid grid-cols-2 gap-2.5 shrink-0">
+            <button id="btnStart-aerobics" onclick="startWorkout('aerobics')" class="col-span-2 h-[58px] bg-purple-500 text-white font-black text-base rounded-[20px] shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                <i data-lucide="play" class="w-5 h-5 fill-white"></i> เริ่มออกกำลังกาย
+            </button>
+            <button id="btnStop-aerobics" onclick="stopWorkout('aerobics')" class="hidden col-span-2 h-[58px] bg-slate-800 text-white font-black text-base rounded-[20px] flex items-center justify-center gap-2 active:scale-95 transition-all">
+                <i data-lucide="pause" class="w-5 h-5 fill-white"></i> หยุดพัก
+            </button>
+            <button id="btnSave-aerobics" onclick="submitData('aerobics')" class="hidden col-span-1 h-[58px] bg-emerald-500 text-white font-black text-sm rounded-[20px] shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all">
+                <i data-lucide="check" class="w-5 h-5"></i> บันทึก
+            </button>
+        </div>
+    </div>
+
+    <div id="mode-ocr" class="activity-mode hidden flex-col fade-in-up delay-2 space-y-4">
+        <div class="bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-100 p-5">
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-[20px] p-5 text-center text-white mb-5 relative overflow-hidden">
+                <div class="absolute -top-8 -right-8 w-28 h-28 bg-white/10 rounded-full"></div>
+                <div class="w-14 h-14 bg-white/15 border border-white/20 rounded-full flex items-center justify-center mx-auto mb-3 relative z-10">
+                    <i data-lucide="watch" class="w-7 h-7 text-white"></i>
+                </div>
+                <h3 class="text-base font-black mb-1 relative z-10">นำเข้าข้อมูลจากนาฬิกา</h3>
+                <p class="text-[11px] text-blue-100 font-semibold mb-4 relative z-10">อัปโหลดภาพหน้าจอจาก Apple Watch, Garmin, Fitbit ฯลฯ — AI จะอ่านค่าให้อัตโนมัติ</p>
+                <input type="file" id="ocrImageInput" accept="image/*" class="hidden" onchange="processOCRImage(this)">
+                <label for="ocrImageInput" id="ocrUploadBtn" class="inline-flex items-center justify-center gap-2 bg-white text-blue-700 text-sm font-black h-[46px] rounded-full cursor-pointer shadow-md w-full z-10 relative active:scale-95 transition-all">
+                    <i data-lucide="upload" class="w-4 h-4"></i> อัปโหลดภาพหน้าจอ
+                </label>
+            </div>
+
+            <div id="ocrPreviewBox" class="hidden mb-4">
+                <img id="ocrPreviewImg" src="" class="w-full max-h-[200px] object-contain rounded-[16px] border border-slate-100 bg-slate-50">
+            </div>
+
+            <!-- แถวที่ 1: ออกกำลังกาย -->
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">🏃 ข้อมูลการออกกำลังกาย</p>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1">
+                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">เวลา (นาที)</label>
+                    <input type="number" id="ocrDuration" class="w-full h-12 bg-[#F5F3EE] border border-slate-200 rounded-[14px] px-4 font-black text-slate-900 text-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="0">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">จำนวนก้าว</label>
+                    <input type="number" id="ocrSteps" class="w-full h-12 bg-[#F5F3EE] border border-slate-200 rounded-[14px] px-4 font-black text-slate-900 text-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="0">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">ระยะทาง (กม.)</label>
+                    <input type="number" step="0.01" id="ocrDistance" class="w-full h-12 bg-[#F5F3EE] border border-slate-200 rounded-[14px] px-4 font-black text-slate-900 text-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="0.00">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[9px] font-black text-rose-500 uppercase tracking-widest ml-1">แคลอรี่ (kcal)</label>
+                    <input type="number" id="ocrCalories" class="w-full h-12 bg-rose-50 border border-rose-200 rounded-[14px] px-4 font-black text-rose-800 text-lg focus:outline-none focus:border-rose-500 transition-colors" placeholder="0">
+                </div>
+            </div>
+
+            <!-- แถวที่ 2: สุขภาพทั่วไป -->
+            <div class="mt-4 pt-4 border-t border-slate-100">
+                <p class="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2">💤 ข้อมูลการนอนและสุขภาพ</p>
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="space-y-1 col-span-3 sm:col-span-1">
+                        <label class="text-[9px] font-black text-indigo-500 uppercase tracking-widest ml-1">การนอน (ชม.)</label>
+                        <input type="number" step="0.5" min="0" max="24" id="ocrSleep" class="w-full h-12 bg-indigo-50 border border-indigo-200 rounded-[14px] px-4 font-black text-indigo-900 text-lg focus:outline-none focus:border-indigo-500 transition-colors" placeholder="7.5">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[9px] font-black text-red-400 uppercase tracking-widest ml-1">หัวใจ (bpm)</label>
+                        <input type="number" id="ocrHeartRate" class="w-full h-12 bg-red-50 border border-red-200 rounded-[14px] px-4 font-black text-red-900 text-lg focus:outline-none focus:border-red-500 transition-colors" placeholder="70">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[9px] font-black text-cyan-500 uppercase tracking-widest ml-1">SpO2 (%)</label>
+                        <input type="number" id="ocrSpO2" class="w-full h-12 bg-cyan-50 border border-cyan-200 rounded-[14px] px-4 font-black text-cyan-900 text-lg focus:outline-none focus:border-cyan-500 transition-colors" placeholder="98">
+                    </div>
+                </div>
+                <p class="text-[10px] text-slate-400 font-medium mt-2 text-center">* นอน ≥ 6 ชม. จะนับเป็นภารกิจนอนหลับของวันนี้โดยอัตโนมัติ (+10 pts)</p>
+            </div>
+        </div>
+
+        <button onclick="submitData('smartwatch')" id="btnSaveOCR" class="w-full h-[52px] bg-[#064e3b] hover:bg-emerald-900 text-white font-black text-[15px] rounded-[20px] shadow-lg shadow-[#064e3b]/20 flex items-center justify-center gap-2 active:scale-95 transition-all">
+            <i data-lucide="save" class="w-5 h-5"></i> บันทึกเข้าประวัติ
+        </button>
+    </div>
+
+    <div id="mode-history" class="activity-mode hidden flex-col fade-in-up delay-2">
+        <div class="bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-100 p-4 mb-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <i data-lucide="clock" class="w-4 h-4 text-slate-500"></i> ประวัติการออกกำลังกาย
+                </h3>
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">20 ล่าสุด</span>
+            </div>
+            <div id="historyList" class="space-y-2.5">
+                <div class="text-center py-8 text-slate-400 text-xs font-bold flex flex-col items-center gap-2">
+                    <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> กำลังโหลด...
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ====== GPS FULLSCREEN MAP OVERLAY ====== -->
+<div id="gpsFullscreen" class="hidden fixed inset-0 z-[250] flex flex-col bg-[#F8FAFC]">
+
+    <!-- Map — top portion, clearly visible, light tiles -->
+    <div class="relative flex-1 min-h-0">
+        <div id="mapFS" class="w-full h-full z-0"></div>
+        <!-- GPS status badge on top of map -->
+        <div class="absolute top-12 left-4 z-20 flex items-center gap-2 bg-white/95 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-md border border-slate-200">
+            <div id="fsStatusDot" class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></div>
+            <span class="text-[9px] font-black text-slate-700 uppercase tracking-widest">GPS RUN</span>
+            <span id="fsStatusText" class="text-[9px] font-bold text-slate-400">รอสัญญาณ...</span>
+        </div>
+        <button onclick="collapseFullscreen()" class="absolute top-12 right-4 z-20 w-9 h-9 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md border border-slate-200 text-slate-600 active:scale-90 transition-all">
+            <i data-lucide="minimize-2" class="w-4 h-4"></i>
+        </button>
+    </div>
+
+    <!-- Stats panel — below map -->
+    <div class="bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-4 pt-4 pb-8 flex flex-col gap-3 shrink-0">
+
+        <!-- Distance big -->
+        <div class="text-center py-1">
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">ระยะทาง</p>
+            <div class="flex items-baseline justify-center gap-1.5">
+                <span id="fsDistance" class="text-[3.6rem] font-black leading-none tracking-tighter text-blue-600 tabular-nums">0.00</span>
+                <span class="text-base font-bold text-blue-400">กม.</span>
+            </div>
+        </div>
+
+        <!-- Stats row -->
+        <div class="grid grid-cols-3 gap-3">
+            <div class="bg-slate-50 border border-slate-100 rounded-[18px] p-3 text-center">
+                <i data-lucide="timer" class="w-4 h-4 mx-auto mb-1 text-emerald-500"></i>
+                <p id="fsTime" class="text-base font-black text-slate-900 tabular-nums">00:00</p>
+                <p class="text-[8px] font-black text-slate-400 uppercase tracking-wider mt-0.5">เวลา</p>
+            </div>
+            <div class="bg-slate-50 border border-slate-100 rounded-[18px] p-3 text-center">
+                <i data-lucide="flame" class="w-4 h-4 mx-auto mb-1 text-rose-500"></i>
+                <p id="fsCals" class="text-base font-black text-slate-900 tabular-nums">0</p>
+                <p class="text-[8px] font-black text-slate-400 uppercase tracking-wider mt-0.5">แคลอรี่</p>
+            </div>
+            <div class="bg-slate-50 border border-slate-100 rounded-[18px] p-3 text-center">
+                <i data-lucide="footprints" class="w-4 h-4 mx-auto mb-1 text-amber-500"></i>
+                <p id="fsSteps" class="text-base font-black text-slate-900 tabular-nums">0</p>
+                <p class="text-[8px] font-black text-slate-400 uppercase tracking-wider mt-0.5">ก้าวเดิน</p>
+            </div>
+        </div>
+
+        <!-- Control buttons -->
+        <div class="flex gap-3 items-center justify-center">
+            <button id="fsBtnStop" onclick="stopTrackingFS()" class="flex-1 h-[56px] bg-gradient-to-r from-rose-500 to-rose-600 rounded-full shadow-lg shadow-rose-500/25 flex items-center justify-center gap-2 text-white font-black text-sm active:scale-95 transition-all">
+                <i data-lucide="square" class="w-5 h-5 fill-white"></i> หยุดพัก
+            </button>
+            <button id="fsBtnSave" onclick="submitData('running')" class="hidden flex-1 h-[56px] bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 text-white font-black text-sm active:scale-95 transition-all">
+                <i data-lucide="check-circle" class="w-5 h-5"></i> บันทึกผล
+            </button>
+            <button id="fsBtnResume" onclick="resumeTrackingFS()" class="hidden flex-1 h-[56px] bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 text-white font-black text-sm active:scale-95 transition-all">
+                <i data-lucide="play" class="w-5 h-5 fill-white ml-0.5"></i> วิ่งต่อ
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    lucide.createIcons();
+
+    function switchMode(mode) {
+        document.querySelectorAll('.activity-mode').forEach(el => {
+            el.classList.add('hidden'); el.classList.remove('flex');
+        });
+        document.querySelectorAll('[id^="tab-"]').forEach(btn => {
+            btn.className = 'snap-start shrink-0 h-[46px] px-5 rounded-[16px] font-black text-sm transition-all flex items-center gap-2 bg-white text-slate-500 shadow-sm border border-slate-100';
+        });
+
+        const modeEl = document.getElementById('mode-' + mode);
+        if (modeEl) { modeEl.classList.remove('hidden'); modeEl.classList.add('flex'); }
+
+        const activeBtn = document.getElementById('tab-' + mode);
+        if (mode === 'ocr') activeBtn.className = 'snap-start shrink-0 h-[46px] px-5 rounded-[16px] font-black text-sm transition-all flex items-center gap-2 tab-watch-active';
+        else if (mode === 'history') activeBtn.className = 'snap-start shrink-0 h-[46px] px-5 rounded-[16px] font-black text-sm transition-all flex items-center gap-2 tab-history-active';
+        else activeBtn.className = 'snap-start shrink-0 h-[46px] px-5 rounded-[16px] font-black text-sm transition-all flex items-center gap-2 tab-active text-white';
+
+        if (mode === 'gps' && map) setTimeout(() => map.invalidateSize(), 100);
+        if (mode === 'history') loadHistory();
+    }
+
+    let workoutTimer = null, workoutStartTime = null, workoutElapsed = 0, currentWorkoutType = null;
+
+    function startWorkout(type) {
+        if (currentWorkoutType && currentWorkoutType !== type) resetWorkoutState();
+        currentWorkoutType = type;
+        workoutStartTime = Date.now() - (workoutElapsed * 1000);
+        workoutTimer = setInterval(updateWorkoutTimer, 1000);
+
+        document.getElementById(`btnStart-${type}`).classList.add('hidden');
+        document.getElementById(`btnStop-${type}`).classList.remove('hidden');
+        document.getElementById(`btnStop-${type}`).classList.add('col-span-2');
+        document.getElementById(`btnSave-${type}`).classList.add('hidden');
+        document.getElementById(`icon-${type}`).classList.add('scale-110', 'animate-pulse');
+        document.getElementById(`bg-glow-${type}`).classList.replace('opacity-0', 'opacity-100');
+    }
+
+    function updateWorkoutTimer() {
+        if (!currentWorkoutType) return;
+        workoutElapsed = Math.floor((Date.now() - workoutStartTime) / 1000);
+        const m = String(Math.floor(workoutElapsed / 60)).padStart(2, '0');
+        const s = String(workoutElapsed % 60).padStart(2, '0');
+        document.getElementById(`timeDisplay-${currentWorkoutType}`).innerText = `${m}:${s}`;
+    }
+
+    function stopWorkout(type) {
+        clearInterval(workoutTimer); workoutTimer = null;
+        document.getElementById(`btnStop-${type}`).classList.add('hidden');
+        const startBtn = document.getElementById(`btnStart-${type}`);
+        startBtn.classList.remove('hidden', 'col-span-2'); startBtn.classList.add('col-span-1');
+        startBtn.innerHTML = '<i data-lucide="play" class="w-5 h-5 fill-white"></i> ทำต่อ';
+        document.getElementById(`btnSave-${type}`).classList.remove('hidden');
+        document.getElementById(`icon-${type}`).classList.remove('scale-110', 'animate-pulse');
+        document.getElementById(`bg-glow-${type}`).classList.replace('opacity-100', 'opacity-0');
+        lucide.createIcons();
+    }
+
+    function resetWorkoutState() {
+        clearInterval(workoutTimer); workoutElapsed = 0;
+        ['cardio', 'aerobics'].forEach(t => {
+            const el = document.getElementById(`timeDisplay-${t}`); if (el) el.innerText = '00:00';
+            const s = document.getElementById(`btnStart-${t}`);
+            if (s) { s.classList.remove('hidden', 'col-span-1'); s.classList.add('col-span-2'); s.innerHTML = '<i data-lucide="play" class="w-5 h-5 fill-white"></i> เริ่มออกกำลังกาย'; }
+            const stop = document.getElementById(`btnStop-${t}`); if (stop) stop.classList.add('hidden');
+            const save = document.getElementById(`btnSave-${t}`); if (save) save.classList.add('hidden');
+        });
+        lucide.createIcons();
+    }
+
+    // ================= GPS & SENSOR TRACKING =================
+    let map, fsMap, pathLine, fsPathLine, watchId = null;
+    let coordinates = [], totalDistance = 0, gpsStartTime = null, gpsTimerInterval = null;
+    let realSteps = 0, lastAccel = null;
+    let fsMapInited = false;
+
+    const TILE_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    const TILE_OPT = { attribution: '© OpenStreetMap', subdomains: 'abcd', maxZoom: 20 };
+
+    document.addEventListener("DOMContentLoaded", () => {
+        map = L.map('map', {zoomControl: false}).setView([15.8653, 104.6258], 16);
+        L.tileLayer(TILE_URL, TILE_OPT).addTo(map);
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                map.setView([pos.coords.latitude, pos.coords.longitude], 17);
+            });
+        }
+    });
+
+    function initFSMap(center, zoom) {
+        if (fsMapInited) { fsMap.setView(center, zoom); return; }
+        fsMap = L.map('mapFS', {zoomControl: false, attributionControl: false}).setView(center, zoom);
+        L.tileLayer(TILE_URL, TILE_OPT).addTo(fsMap);
+        fsPathLine = L.polyline(coordinates, {
+            color: '#10b981', weight: 7, opacity: 0.95, className: 'neon-path'
+        }).addTo(fsMap);
+        fsMapInited = true;
+    }
+
+    function openFullscreen() {
+        const fs = document.getElementById('gpsFullscreen');
+        fs.classList.remove('hidden');
+        fs.style.opacity = '1';
+        document.body.style.overflow = 'hidden';
+
+        const center = map.getCenter();
+        setTimeout(() => {
+            initFSMap([center.lat, center.lng], map.getZoom());
+            lucide.createIcons();
+        }, 50);
+    }
+
+    function collapseFullscreen() {
+        const fs = document.getElementById('gpsFullscreen');
+        fs.style.opacity = '0';
+        setTimeout(() => {
+            fs.classList.add('hidden');
+            document.body.style.overflow = '';
+            if (map) setTimeout(() => map.invalidateSize(), 100);
+        }, 300);
+    }
+
+    // Haversine formula (ระยะทางแม่นยำขึ้น)
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371, dLat = (lat2 - lat1) * Math.PI / 180, dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    // ฟังก์ชันนับก้าวจากเซนเซอร์จริงๆ (Pedometer)
+    function handleMotion(event) {
+        if (!event.accelerationIncludingGravity) return;
+        const acc = event.accelerationIncludingGravity;
+        const currentAccel = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+
+        if (lastAccel !== null) {
+            // ถ้าแรงเหวี่ยงมือถือเปลี่ยนแปลไปมากกว่า 1.5 m/s² ให้นับเป็น 1 ก้าว
+            if (Math.abs(currentAccel - lastAccel) > 1.5) {
+                realSteps++;
+                document.getElementById('liveSteps').innerText = realSteps.toLocaleString();
+            }
+        }
+        lastAccel = currentAccel;
+    }
+
+    // ขอสิทธิ์เซนเซอร์ใน iOS 13+
+    async function requestDeviceMotion() {
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+            try {
+                const permission = await DeviceMotionEvent.requestPermission();
+                if (permission === 'granted') {
+                    window.addEventListener('devicemotion', handleMotion);
+                }
+            } catch (e) { console.warn('Motion permission error', e); }
+        } else {
+            window.addEventListener('devicemotion', handleMotion);
+        }
+    }
+
+    function updateFSStats() {
+        document.getElementById('fsDistance').innerText = totalDistance.toFixed(2);
+        document.getElementById('liveDistance').innerText = totalDistance.toFixed(2);
+    }
+
+    function setRunningStatus(running) {
+        // Mini panel
+        document.getElementById('gpsStatusIcon').className = running
+            ? "w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"
+            : "w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.8)]";
+        document.getElementById('gpsStatusText').innerText = running ? "กำลังบันทึกพิกัด..." : "หยุดพักชั่วคราว";
+        document.getElementById('gpsStatusText').className = running
+            ? "text-[9px] font-bold text-emerald-400 tracking-widest uppercase mt-1"
+            : "text-[9px] font-bold text-amber-400 tracking-widest uppercase mt-1";
+        // Fullscreen
+        document.getElementById('fsStatusDot').className = running
+            ? "w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"
+            : "w-2 h-2 rounded-full bg-amber-400 shrink-0";
+        document.getElementById('fsStatusText').innerText = running ? "กำลังบันทึกพิกัด..." : "หยุดพักชั่วคราว";
+    }
+
+    function startTracking() {
+        if (!("geolocation" in navigator)) { alert("อุปกรณ์ไม่รองรับ GPS"); return; }
+        requestDeviceMotion();
+
+        document.getElementById('btnStartGPS').classList.add('hidden');
+        document.getElementById('btnStopGPS').classList.remove('hidden');
+        document.getElementById('btnStopGPS').classList.add('flex');
+
+        if (!gpsStartTime) {
+            coordinates = []; totalDistance = 0; realSteps = 0; fsMapInited = false;
+            if (pathLine) map.removeLayer(pathLine);
+            pathLine = L.polyline([], { color: '#059669', weight: 5, opacity: 1 }).addTo(map);
+        }
+
+        setRunningStatus(true);
+        gpsStartTime = new Date();
+
+        gpsTimerInterval = setInterval(() => {
+            const s = Math.floor((new Date() - gpsStartTime) / 1000);
+            const timeStr = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+            const cals = Math.round(realSteps * 0.045 + Math.floor(s/60) * 3);
+            document.getElementById('liveTime').innerText = timeStr;
+            document.getElementById('liveCals').innerText = cals;
+            document.getElementById('fsTime').innerText = timeStr;
+            document.getElementById('fsCals').innerText = cals;
+            document.getElementById('fsSteps').innerText = realSteps.toLocaleString();
+        }, 1000);
+
+        watchId = navigator.geolocation.watchPosition(pos => {
+            const { latitude: lat, longitude: lon } = pos.coords;
+            if (coordinates.length > 0) {
+                const d = calculateDistance(coordinates.at(-1)[0], coordinates.at(-1)[1], lat, lon);
+                if (d > 0.001 && d < 0.1) {
+                    totalDistance += d;
+                    updateFSStats();
+                }
+            }
+            coordinates.push([lat, lon]);
+            pathLine.addLatLng([lat, lon]);
+            map.setView([lat, lon], 17, {animate: true});
+            if (fsMap && fsPathLine) {
+                fsPathLine.addLatLng([lat, lon]);
+                fsMap.setView([lat, lon], 17, {animate: true});
+            }
+        }, err => console.warn('GPS:', err), { enableHighAccuracy: true, maximumAge: 5000, timeout: 5000 });
+
+        // เปิด fullscreen map ทันที
+        openFullscreen();
+    }
+
+    function stopTrackingFS() {
+        if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+        clearInterval(gpsTimerInterval);
+        window.removeEventListener('devicemotion', handleMotion);
+        setRunningStatus(false);
+
+        // สลับปุ่มใน fullscreen
+        document.getElementById('fsBtnStop').classList.add('hidden');
+        document.getElementById('fsBtnSave').classList.remove('hidden');
+        document.getElementById('fsBtnSave').classList.add('flex');
+        document.getElementById('fsBtnResume').classList.remove('hidden');
+        document.getElementById('fsBtnResume').classList.add('flex');
+
+        // สลับปุ่มใน mini panel
+        document.getElementById('btnStopGPS').classList.add('hidden');
+        document.getElementById('btnStopGPS').classList.remove('flex');
+        const startBtn = document.getElementById('btnStartGPS');
+        startBtn.classList.remove('hidden');
+        startBtn.innerHTML = '<i data-lucide="play" class="w-8 h-8 fill-white ml-1"></i>';
+        document.getElementById('btnSaveGPS').classList.remove('hidden');
+        document.getElementById('btnSaveGPS').classList.add('flex');
+        lucide.createIcons();
+    }
+
+    function resumeTrackingFS() {
+        document.getElementById('fsBtnStop').classList.remove('hidden');
+        document.getElementById('fsBtnSave').classList.add('hidden');
+        document.getElementById('fsBtnResume').classList.add('hidden');
+        startTracking();
+    }
+
+    function stopTracking() {
+        stopTrackingFS();
+        collapseFullscreen();
+    }
+
+    async function processOCRImage(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        const btn = document.getElementById('ocrUploadBtn');
+
+        const reader = new FileReader();
+        reader.onload = e => {
+            document.getElementById('ocrPreviewImg').src = e.target.result;
+            document.getElementById('ocrPreviewBox').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> AI กำลังอ่านข้อมูล...`;
+        btn.style.pointerEvents = 'none';
+        lucide.createIcons();
+
+        const formData = new FormData(); formData.append('image', file);
+        try {
+            const res = await fetch('/api/ocr_exercise', { method: 'POST', body: formData });
+            const result = await res.json();
+            if (result.success && result.data) {
+                const d = result.data;
+                if (d.duration > 0)    document.getElementById('ocrDuration').value  = d.duration;
+                if (d.steps > 0)       document.getElementById('ocrSteps').value      = d.steps;
+                if (d.distance > 0)    document.getElementById('ocrDistance').value   = d.distance;
+                if (d.calories > 0)    document.getElementById('ocrCalories').value   = d.calories;
+                if (d.sleep_hours > 0) document.getElementById('ocrSleep').value      = d.sleep_hours;
+                if (d.heart_rate > 0)  document.getElementById('ocrHeartRate').value  = d.heart_rate;
+                if (d.spo2 > 0)        document.getElementById('ocrSpO2').value        = d.spo2;
+                /* แสดงสรุปที่ AI อ่านได้ */
+                const found = [];
+                if (d.steps > 0)       found.push(`👟 ${d.steps.toLocaleString()} ก้าว`);
+                if (d.duration > 0)    found.push(`⏱ ${d.duration} นาที`);
+                if (d.distance > 0)    found.push(`📍 ${d.distance} กม.`);
+                if (d.calories > 0)    found.push(`🔥 ${d.calories} kcal`);
+                if (d.sleep_hours > 0) found.push(`💤 ${d.sleep_hours} ชม.`);
+                if (d.heart_rate > 0)  found.push(`❤️ ${d.heart_rate} bpm`);
+                if (d.spo2 > 0)        found.push(`🫁 SpO2 ${d.spo2}%`);
+                if (found.length) {
+                    const toast = document.createElement('div');
+                    toast.className = 'fixed top-16 left-1/2 -translate-x-1/2 z-[999] bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-2xl shadow-lg';
+                    toast.textContent = 'AI อ่านได้: ' + found.join(' · ');
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 4000);
+                }
+            }
+        } catch (e) {
+            console.warn('OCR error', e);
+        } finally {
+            btn.innerHTML = orig; btn.style.pointerEvents = ''; input.value = ''; lucide.createIcons();
+        }
+    }
+
+    async function submitData(activityType) {
+        let duration = 0, steps = 0, distance = 0, calories = 0, btn;
+
+        if (activityType === 'running') {
+            if (totalDistance === 0 && realSteps === 0) { alert('คุณยังไม่ได้เริ่มออกวิ่งครับ!'); return; }
+            const s = Math.floor((new Date() - gpsStartTime) / 1000);
+            duration = Math.max(1, Math.floor(s / 60));
+            distance = parseFloat(totalDistance.toFixed(2));
+            steps = realSteps;
+            calories = parseInt(document.getElementById('liveCals').innerText);
+            btn = document.getElementById('btnSaveGPS');
+        } else if (activityType === 'cardio' || activityType === 'aerobics') {
+            if (workoutElapsed < 60) { alert('ต้องออกกำลังกายอย่างน้อย 1 นาทีก่อนบันทึก'); return; }
+            duration = Math.floor(workoutElapsed / 60);
+            btn = document.getElementById(`btnSave-${activityType}`);
+        } else if (activityType === 'smartwatch') {
+            duration = parseInt(document.getElementById('ocrDuration').value) || 0;
+            steps = parseInt(document.getElementById('ocrSteps').value) || 0;
+            distance = parseFloat(document.getElementById('ocrDistance').value) || 0;
+            calories = parseInt(document.getElementById('ocrCalories').value) || 0;
+            const sleepHours   = parseFloat(document.getElementById('ocrSleep').value) || 0;
+            const heartRate    = parseInt(document.getElementById('ocrHeartRate').value) || 0;
+            const spo2Val      = parseInt(document.getElementById('ocrSpO2').value) || 0;
+            if (duration <= 0 && steps <= 0 && sleepHours <= 0) {
+                alert('กรุณากรอกข้อมูลอย่างน้อย 1 ช่อง (การนอน, ก้าว, หรือเวลา)'); return;
+            }
+            btn = document.getElementById('btnSaveOCR');
+            /* ส่ง sleep/heart_rate/spo2 ไปกับ payload */
+            if (btn) btn.disabled = true;
+            try {
+                const res = await fetch('/api/save_exercise', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'smartwatch', duration, steps, distance, calories,
+                        sleep_hours: sleepHours, heart_rate: heartRate, spo2: spo2Val
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    /* ล้างฟอร์ม */
+                    ['ocrDuration','ocrSteps','ocrDistance','ocrCalories','ocrSleep','ocrHeartRate','ocrSpO2'].forEach(id => {
+                        const el = document.getElementById(id); if (el) el.value = '';
+                    });
+                    document.getElementById('ocrPreviewBox')?.classList.add('hidden');
+                    const msgs = [];
+                    if (steps > 0)       msgs.push(`👟 ${steps.toLocaleString()} ก้าว`);
+                    if (duration > 0)    msgs.push(`⏱ ${duration} นาที`);
+                    if (sleepHours > 0)  msgs.push(`💤 นอน ${sleepHours} ชม.`);
+                    if (heartRate > 0)   msgs.push(`❤️ ${heartRate} bpm`);
+                    if (spo2Val > 0)     msgs.push(`🫁 SpO2 ${spo2Val}%`);
+                    alert('✅ บันทึกสำเร็จ!\n' + (msgs.join(' · ') || '') + '\n+10 คะแนน');
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'เกิดข้อผิดพลาด');
+                }
+            } catch(e) { alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); }
+            finally { if (btn) btn.disabled = false; }
+            return; /* จบ smartwatch flow ที่นี่เลย */
+        }
+
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> กำลังบันทึก...`;
+        btn.disabled = true; lucide.createIcons();
+
+        try {
+            const res = await fetch('/api/save_exercise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: activityType, duration, steps, distance, calories })
+            });
+            if (res.ok) { window.location.href = '/dashboard'; }
+            else throw new Error();
+        } catch (e) {
+            alert('บันทึกไม่สำเร็จ'); btn.innerHTML = orig; btn.disabled = false; lucide.createIcons();
+        }
+    }
+
+    async function loadHistory() {
+        const list = document.getElementById('historyList');
+        try {
+            const res = await fetch('/api/exercise_history');
+            const data = await res.json();
+            if (!data.length) {
+                list.innerHTML = '<div class="text-center py-8 text-slate-400 text-xs font-bold flex flex-col items-center gap-2"><i data-lucide="dumbbell" class="w-5 h-5"></i>ยังไม่มีประวัติการออกกำลังกาย</div>';
+                lucide.createIcons(); return;
+            }
+
+            const typeIcons = { running: '🏃', cardio: '❤️', aerobics: '💃', yoga: '🧘' };
+            const typeNames = { running: 'วิ่ง / เดิน', cardio: 'คาร์ดิโอ', aerobics: 'แอโรบิก', yoga: 'โยคะ' };
+
+            list.innerHTML = data.map(ex => {
+                const icon = typeIcons[ex.type] || '🏋️';
+                const name = typeNames[ex.type] || ex.type;
+                const date = new Date(ex.date);
+                const dateStr = date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+                const stats = [];
+                if (ex.duration > 0) stats.push(`${ex.duration} นาที`);
+                if (ex.steps > 0) stats.push(`${ex.steps.toLocaleString()} ก้าว`);
+                if (ex.distance > 0) stats.push(`${ex.distance} กม.`);
+                if (ex.calories > 0) stats.push(`${ex.calories} kcal`);
+                return `
+                    <div class="flex items-center gap-3 bg-[#F5F3EE] rounded-[16px] p-3">
+                        <div class="w-10 h-10 bg-white rounded-[12px] flex items-center justify-center text-xl shrink-0 shadow-sm">${icon}</div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-black text-slate-900">${name}</p>
+                            <p class="text-[10px] text-slate-500 font-semibold mt-0.5 truncate">${stats.join(' · ')}</p>
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-400 shrink-0">${dateStr}</span>
+                    </div>`;
+            }).join('');
+        } catch (e) {
+            list.innerHTML = '<div class="text-center py-4 text-slate-400 text-xs">โหลดประวัติไม่สำเร็จ</div>';
+        }
+        lucide.createIcons();
+    }
+
+    // Auto-open tab from URL param (?tab=ocr)
+    const _urlTab = new URLSearchParams(window.location.search).get('tab');
+    if (_urlTab) switchMode(_urlTab);
+</script>
+{% endblock %}

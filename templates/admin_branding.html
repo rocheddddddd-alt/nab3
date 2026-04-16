@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block dashboard_content %}
+<div class="px-4 py-6 max-w-2xl mx-auto fade-in-up">
+
+    <div class="flex items-center gap-3 mb-6">
+        <a href="/dashboard" class="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-[#064e3b] transition-all shadow-sm">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        </a>
+        <div>
+            <h2 class="text-xl font-black text-slate-900">ตั้งค่าแบรนด์แอป</h2>
+            <p class="text-xs text-slate-500">อัปโหลดโลโก้ ชื่อแอป และฟอนต์</p>
+        </div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="space-y-5">
+
+        <!-- Current Preview -->
+        <div class="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100">
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">ตัวอย่างปัจจุบัน</p>
+            <div class="flex items-center gap-3 bg-slate-50 rounded-[14px] p-3">
+                {% if app_settings.logo_path %}
+                <img src="{{ app_settings.logo_path }}" alt="Logo" class="w-10 h-10 rounded-[12px] object-cover shadow">
+                {% else %}
+                <div class="w-10 h-10 rounded-[12px] bg-[#064e3b] flex items-center justify-center shadow">
+                    <i data-lucide="dna" class="w-5 h-5 text-white"></i>
+                </div>
+                {% endif %}
+                <div>
+                    <p class="font-black text-slate-900 text-base leading-none">{{ app_settings.app_name }}<span class="text-emerald-500">.</span></p>
+                    <p class="text-xs text-slate-400 mt-0.5">ฟอนต์: {{ app_settings.font_name }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Name -->
+        <div class="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100">
+            <label class="block text-sm font-bold text-slate-700 mb-2">
+                <i data-lucide="type" class="w-4 h-4 inline mr-1 text-emerald-600"></i>ชื่อแอปพลิเคชัน
+            </label>
+            <input
+                type="text"
+                name="app_name"
+                value="{{ settings.get('app_name', 'mHealth') }}"
+                placeholder="เช่น mHealth, HealthPlus, WellnessApp"
+                class="w-full border border-slate-200 rounded-[12px] px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:border-emerald-400 bg-slate-50 transition-all"
+            >
+        </div>
+
+        <!-- Logo Upload -->
+        <div class="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100">
+            <label class="block text-sm font-bold text-slate-700 mb-2">
+                <i data-lucide="image" class="w-4 h-4 inline mr-1 text-emerald-600"></i>โลโก้แอป
+            </label>
+            <p class="text-xs text-slate-400 mb-3">รองรับไฟล์: PNG, JPG, SVG, WebP (แนะนำขนาด 72×72px ขึ้นไป)</p>
+
+            <label class="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-[14px] p-6 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/40 transition-all" id="logoDropzone">
+                {% if app_settings.logo_path %}
+                <img src="{{ app_settings.logo_path }}" alt="Current Logo" class="w-16 h-16 rounded-[14px] object-cover shadow mb-1" id="logoPreview">
+                {% else %}
+                <div class="w-16 h-16 rounded-[14px] bg-slate-100 flex items-center justify-center" id="logoPreviewBox">
+                    <i data-lucide="upload-cloud" class="w-7 h-7 text-slate-400" id="uploadIcon"></i>
+                </div>
+                <img src="" alt="" class="w-16 h-16 rounded-[14px] object-cover shadow hidden" id="logoPreview">
+                {% endif %}
+                <p class="text-sm font-bold text-slate-600">คลิกเพื่อเลือกไฟล์โลโก้</p>
+                <p class="text-xs text-slate-400">หรือลากไฟล์มาวางที่นี่</p>
+                <input type="file" name="logo" accept="image/*" class="hidden" id="logoInput" onchange="previewLogo(this)">
+            </label>
+
+            {% if app_settings.logo_path %}
+            <div class="mt-3 flex items-center gap-2">
+                <span class="text-xs text-slate-500">โลโก้ปัจจุบัน:</span>
+                <span class="text-xs font-medium text-emerald-600 truncate">{{ app_settings.logo_path }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Font Selection -->
+        <div class="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100">
+            <label class="block text-sm font-bold text-slate-700 mb-3">
+                <i data-lucide="baseline" class="w-4 h-4 inline mr-1 text-emerald-600"></i>ฟอนต์แอปพลิเคชัน
+            </label>
+            <div class="grid grid-cols-2 gap-2" id="fontGrid">
+                {% set fonts = [
+                    ('Prompt', 'Prompt - ไทย (ค่าเริ่มต้น)'),
+                    ('Sarabun', 'Sarabun - ไทย บาง'),
+                    ('Kanit', 'Kanit - ไทย ทันสมัย'),
+                    ('Mitr', 'Mitr - ไทย กลม'),
+                    ('Noto Sans Thai', 'Noto Sans Thai'),
+                    ('Chakra Petch', 'Chakra Petch - Tech'),
+                    ('Inter', 'Inter - อังกฤษ')
+                ] %}
+                {% for fname, flabel in fonts %}
+                <label class="font-card flex items-center gap-2.5 p-3 rounded-[12px] border-2 cursor-pointer transition-all {{ 'border-emerald-400 bg-emerald-50' if settings.get('font_name', 'Prompt') == fname else 'border-slate-100 bg-slate-50 hover:border-slate-300' }}"
+                       onclick="selectFont(this, '{{ fname }}')">
+                    <input type="radio" name="font_name" value="{{ fname }}" class="sr-only" {{ 'checked' if settings.get('font_name', 'Prompt') == fname else '' }}>
+                    <div class="w-8 h-8 rounded-[8px] bg-[#064e3b] flex items-center justify-center shrink-0">
+                        <span class="text-white font-black text-xs" style="font-family: '{{ fname }}', sans-serif;">Aa</span>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-800 leading-tight" style="font-family: '{{ fname }}', sans-serif;">{{ fname }}</p>
+                        <p class="text-[10px] text-slate-400 leading-tight">{{ flabel.split(' - ')[1] if ' - ' in flabel else '' }}</p>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Save Button -->
+        <button type="submit"
+            class="w-full bg-[#064e3b] hover:bg-emerald-800 text-white font-black py-4 rounded-[16px] text-base shadow-lg shadow-emerald-900/20 transition-all active:scale-95">
+            <i data-lucide="save" class="w-5 h-5 inline mr-2"></i>บันทึกการตั้งค่า
+        </button>
+
+        {% if request.method == 'GET' and request.args.get('saved') %}
+        <div class="bg-emerald-50 border border-emerald-200 rounded-[14px] p-3 text-center text-sm font-bold text-emerald-700">
+            ✅ บันทึกสำเร็จแล้ว
+        </div>
+        {% endif %}
+
+    </form>
+</div>
+
+<script>
+function previewLogo(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('logoPreview');
+            const box = document.getElementById('logoPreviewBox');
+            const icon = document.getElementById('uploadIcon');
+            if (preview) {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                if (box) box.classList.add('hidden');
+                if (icon) icon.classList.add('hidden');
+            }
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function selectFont(el, fontName) {
+    document.querySelectorAll('.font-card').forEach(c => {
+        c.classList.remove('border-emerald-400', 'bg-emerald-50');
+        c.classList.add('border-slate-100', 'bg-slate-50');
+    });
+    el.classList.remove('border-slate-100', 'bg-slate-50');
+    el.classList.add('border-emerald-400', 'bg-emerald-50');
+    el.querySelector('input[type=radio]').checked = true;
+
+    // Live preview
+    document.body.style.fontFamily = `'${fontName}', 'Prompt', 'Inter', sans-serif`;
+}
+
+// Drag & drop support
+const dropzone = document.getElementById('logoDropzone');
+if (dropzone) {
+    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('border-emerald-400', 'bg-emerald-50/60'); });
+    dropzone.addEventListener('dragleave', e => { dropzone.classList.remove('border-emerald-400', 'bg-emerald-50/60'); });
+    dropzone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropzone.classList.remove('border-emerald-400', 'bg-emerald-50/60');
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            const input = document.getElementById('logoInput');
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            previewLogo(input);
+        }
+    });
+}
+</script>
+{% endblock %}

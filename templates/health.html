@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block dashboard_content %}
+
+{% set safe_ex = today_exercise | default(0) | int %}
+{% set safe_sleep = today_sleep | default(0) | float %}
+
+<div class="min-h-[100dvh] bg-[#F8FAFC] pb-32 font-sans">
+
+    <header class="bg-white/90 backdrop-blur-xl sticky top-0 z-40 border-b border-slate-100 shadow-sm">
+        <div class="max-w-md mx-auto lg:max-w-none px-6 py-5 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-black text-slate-900 tracking-tight">ภารกิจชะลอวัย</h1>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Daily Anti-Aging Tasks</p>
+            </div>
+            <div class="bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-inner">
+                <i data-lucide="star" class="w-4 h-4 text-amber-500 fill-amber-500"></i>
+                <span class="text-lg font-black text-[#064e3b]">{{ points | default(0) }}</span>
+                <span class="text-[10px] font-bold text-emerald-600 uppercase">Pts</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto lg:max-w-none p-6 space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
+
+        <div class="bg-gradient-to-r from-blue-500 to-indigo-500 text-white p-5 rounded-[24px] shadow-lg shadow-blue-500/20 mb-6 lg:col-span-2 lg:mb-0">
+            <div class="flex items-start gap-4">
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center shrink-0 backdrop-blur-sm">
+                    <i data-lucide="target" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-black">สะสมคะแนนสุขภาพทุกวัน!</h2>
+                    <p class="text-xs text-blue-100 mt-1 leading-relaxed">ทำภารกิจด้านล่างให้สำเร็จเพื่อรับ +10 คะแนน ข้อมูลจะถูกซิงค์ไปอัปเดตกราฟที่หน้าหลักอัตโนมัติ</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 flex items-center justify-between transition-all hover:shadow-md">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-cyan-50 text-cyan-500 rounded-[16px] flex items-center justify-center shrink-0">
+                    <i data-lucide="droplets" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="text-[14px] font-black text-slate-800">ดื่มน้ำสะอาด 8 แก้ว</h3>
+                    <p class="text-[11px] text-slate-500 font-medium">เพิ่มความชุ่มชื้นให้เซลล์ผิว</p>
+                </div>
+            </div>
+            {% if 'water' in checkins %}
+                <button type="button" disabled class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md"><i data-lucide="check" class="w-5 h-5"></i></button>
+            {% else %}
+                <button type="button" onclick="checkInTask('water', this)" class="h-10 px-4 bg-slate-100 hover:bg-[#064e3b] hover:text-white text-slate-600 text-xs font-black rounded-full transition-colors">รับ 10 Pts</button>
+            {% endif %}
+        </div>
+
+        <div class="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 flex items-center justify-between transition-all hover:shadow-md">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-orange-50 text-orange-500 rounded-[16px] flex items-center justify-center shrink-0">
+                    <i data-lucide="utensils" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="text-[14px] font-black text-slate-800">ลดหวาน มัน เค็ม</h3>
+                    <p class="text-[11px] text-slate-500 font-medium">ลดการอักเสบ (Glycation)</p>
+                </div>
+            </div>
+            {% if 'food' in checkins %}
+                <button type="button" disabled class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md"><i data-lucide="check" class="w-5 h-5"></i></button>
+            {% else %}
+                <button type="button" onclick="checkInTask('food', this)" class="h-10 px-4 bg-slate-100 hover:bg-[#064e3b] hover:text-white text-slate-600 text-xs font-black rounded-full transition-colors">รับ 10 Pts</button>
+            {% endif %}
+        </div>
+
+        <div class="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 flex items-center justify-between transition-all hover:shadow-md">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-amber-50 text-amber-500 rounded-[16px] flex items-center justify-center shrink-0">
+                    <i data-lucide="activity" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="text-[14px] font-black text-slate-800">ขยับร่างกาย 30 นาที</h3>
+                    <p class="text-[11px] text-slate-500 font-medium">ซิงค์อัตโนมัติจากหน้าบันทึก</p>
+                </div>
+            </div>
+            {% if safe_ex >= 30 or 'exercise' in checkins %}
+                <div class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md"><i data-lucide="check" class="w-5 h-5"></i></div>
+            {% else %}
+                <a href="/exercise" class="h-10 flex items-center px-4 bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-black rounded-full transition-colors">ไปบันทึก</a>
+            {% endif %}
+        </div>
+
+        <div class="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 flex flex-col transition-all hover:shadow-md">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-indigo-50 text-indigo-500 rounded-[16px] flex items-center justify-center shrink-0">
+                        <i data-lucide="moon" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-[14px] font-black text-slate-800">นอนครบ 7 ชั่วโมง</h3>
+                        <p class="text-[11px] text-slate-500 font-medium">บันทึกชั่วโมงการนอนเมื่อคืน</p>
+                    </div>
+                </div>
+                {% if safe_sleep >= 7 or 'sleep' in checkins %}
+                    <div class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md"><i data-lucide="check" class="w-5 h-5"></i></div>
+                {% endif %}
+            </div>
+
+            {% if safe_sleep < 7 and 'sleep' not in checkins %}
+            <div class="mt-4 pt-4 border-t border-slate-100 flex gap-2">
+                <input type="number" id="sleepInput" step="0.5" placeholder="ระบุ ชม. เช่น 7.5" class="w-full h-12 bg-slate-50 border border-slate-200 rounded-[14px] px-4 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                <button type="button" onclick="submitSleepData(this)" class="h-12 px-6 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-black rounded-[14px] shadow-md shadow-indigo-500/20 transition-all shrink-0">บันทึก</button>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- ═══ ภารกิจ: งดแอลกอฮอล ═══ -->
+        <div class="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 flex items-center justify-between transition-all hover:shadow-md">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-purple-50 text-purple-500 rounded-[16px] flex items-center justify-center shrink-0">
+                    <i data-lucide="wine-off" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="text-[14px] font-black text-slate-800">งดแอลกอฮอล</h3>
+                    <p class="text-[11px] text-slate-500 font-medium">ลด Inflammation ชะลอการแก่ของเซลล์</p>
+                </div>
+            </div>
+            {% if 'alcohol' in checkins %}
+                <button type="button" disabled class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md"><i data-lucide="check" class="w-5 h-5"></i></button>
+            {% else %}
+                <button type="button" onclick="checkInTask('alcohol', this)" class="h-10 px-4 bg-slate-100 hover:bg-[#064e3b] hover:text-white text-slate-600 text-xs font-black rounded-full transition-colors">รับ 10 Pts</button>
+            {% endif %}
+        </div>
+
+        <!-- ═══ ลิงก์ไปหน้า Smartwatch ═══ -->
+        <a href="/exercise?tab=ocr" class="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 rounded-[24px] shadow-md flex items-center gap-4 transition-all hover:shadow-lg active:scale-[0.98] lg:col-span-2">
+            <div class="w-12 h-12 bg-white/15 rounded-[16px] flex items-center justify-center shrink-0">
+                <i data-lucide="watch" class="w-6 h-6 text-white"></i>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-[14px] font-black text-white">นำเข้าข้อมูลจาก Smartwatch</h3>
+                <p class="text-[11px] text-blue-100 font-medium mt-0.5">AI อ่านภาพหน้าจอนาฬิกาให้ → บันทึกการออกกำลังกาย</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-5 h-5 text-white/70 shrink-0"></i>
+        </a>
+
+    </main>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    lucide.createIcons();
+
+    // ฟังก์ชันยิง API เช็คอินภารกิจ
+    async function checkInTask(taskType, buttonElement) {
+        if(buttonElement.disabled) return;
+        const originalContent = buttonElement.innerHTML;
+        buttonElement.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin text-slate-400"></i>`;
+        buttonElement.disabled = true;
+        lucide.createIcons();
+
+        try {
+            const response = await fetch('/api/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: taskType }) });
+            const data = await response.json();
+            if (response.ok && data.success) {
+                buttonElement.className = "w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md transform scale-110 transition-transform";
+                buttonElement.innerHTML = `<i data-lucide="check" class="w-5 h-5"></i>`;
+                lucide.createIcons();
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                alert(data.error || 'คุณได้ทำภารกิจนี้ไปแล้วครับ!');
+                buttonElement.innerHTML = originalContent; buttonElement.disabled = false; lucide.createIcons();
+            }
+        } catch (error) {
+            alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+            buttonElement.innerHTML = originalContent; buttonElement.disabled = false; lucide.createIcons();
+        }
+    }
+
+    // ฟังก์ชันสำหรับบันทึกการนอน
+    async function submitSleepData(btn) {
+        const sleepHours = document.getElementById('sleepInput').value;
+        if(!sleepHours || sleepHours <= 0) {
+            alert('กรุณากรอกชั่วโมงการนอนที่ถูกต้องครับ');
+            return;
+        }
+
+        const originalText = btn.innerText;
+        btn.innerText = 'รอสักครู่...';
+        btn.disabled = true;
+
+        try {
+            // บันทึกชั่วโมงการนอนเข้าฐานข้อมูล (จะส่งผลไปอัปเดตวงแหวนหน้า Dashboard อัตโนมัติ)
+            const response = await fetch('/api/save_daily_log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sleep: parseFloat(sleepHours) })
+            });
+
+            if (response.ok) {
+                // บันทึกเสร็จแล้ว โหลดหน้าใหม่เพื่อให้ปุ่มเช็คอินเด้งเป็นสีเขียว
+                window.location.reload();
+            } else {
+                alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+                btn.innerText = originalText; btn.disabled = false;
+            }
+        } catch (error) {
+            alert('ระบบขัดข้อง');
+            btn.innerText = originalText; btn.disabled = false;
+        }
+    }
+</script>
+{% endblock %}

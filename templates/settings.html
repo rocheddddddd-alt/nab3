@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block dashboard_content %}
+
+<div class="px-5 py-8 space-y-6 pb-32">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between fade-in-up mb-8">
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">ตั้งค่า</h1>
+            <p class="text-sm font-medium text-emerald-600 mt-1">Settings & Preferences</p>
+        </div>
+        <div class="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center">
+            <i data-lucide="settings" class="w-6 h-6 text-emerald-600"></i>
+        </div>
+    </div>
+
+    <!-- Profile Section -->
+    <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 fade-in-up delay-1">
+        <h2 class="text-sm font-extrabold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <div class="w-1.5 h-4 bg-emerald-400 rounded-full"></div> โปรไฟล์
+        </h2>
+        
+        <div class="flex items-center gap-4 mb-6">
+            <div id="settingsAvatarPlaceholder" class="w-16 h-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-bold text-2xl shadow-lg">
+                {{ name[0] if name else 'U' }}
+            </div>
+            <img id="settingsAvatarImage" src="" alt="Profile" class="hidden w-16 h-16 rounded-2xl object-cover shadow-lg border-2 border-white">
+            <div class="flex-1">
+                <div class="text-sm font-bold text-slate-800">{{ name | default('ผู้ใช้งาน') }}</div>
+                <input type="file" id="settingsAvatarInput" accept="image/*" class="hidden" onchange="previewSettingsAvatar(this)">
+                <label for="settingsAvatarInput" class="text-xs font-bold text-emerald-600 cursor-pointer hover:text-emerald-700">เปลี่ยนรูปภาพ</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Setting -->
+    <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 fade-in-up delay-3">
+        <h2 class="text-sm font-extrabold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <div class="w-1.5 h-4 bg-purple-400 rounded-full"></div> ธีม
+        </h2>
+        
+        <div class="grid grid-cols-2 gap-3">
+            <button onclick="setTheme('light')" id="btn-theme-light" class="py-4 px-4 rounded-2xl font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2 bg-slate-900 text-white shadow-md border-2 border-slate-900">
+                <i data-lucide="sun" class="w-4 h-4"></i> สว่าง
+            </button>
+            <button onclick="setTheme('dark')" id="btn-theme-dark" class="py-4 px-4 rounded-2xl font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2 bg-white text-slate-700 border-2 border-slate-200 hover:bg-slate-50">
+                <i data-lucide="moon" class="w-4 h-4"></i> มืด
+            </button>
+        </div>
+    </div>
+
+    <!-- Account Section -->
+    <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 fade-in-up delay-3">
+        <h2 class="text-sm font-extrabold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <div class="w-1.5 h-4 bg-orange-400 rounded-full"></div> บัญชี
+        </h2>
+        
+        <div class="space-y-2">
+            <div class="py-3 px-4 bg-slate-50 rounded-xl">
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">ชื่อผู้ใช้ (username/email)</div>
+                <div class="text-sm font-bold text-slate-800">{{ email | default(user.username if user else 'user@example.com') }}</div>
+            </div>
+            <div class="py-3 px-4 bg-slate-50 rounded-xl">
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">ชื่อจริง</div>
+                <div class="text-sm font-bold text-slate-800">{{ user.name if user else name }}</div>
+            </div>
+            {% if user and user.last_name %}
+            <div class="py-3 px-4 bg-slate-50 rounded-xl">
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">นามสกุล</div>
+                <div class="text-sm font-bold text-slate-800">{{ user.last_name }}</div>
+            </div>
+            {% endif %}
+            {% if user and user.occupation %}
+            <div class="py-3 px-4 bg-slate-50 rounded-xl">
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">อาชีพ</div>
+                <div class="text-sm font-bold text-slate-800">{{ user.occupation }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Edit Profile Section -->
+    <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 fade-in-up delay-3">
+        <h2 class="text-sm font-extrabold text-slate-800 uppercase tracking-wider mb-1 flex items-center gap-2">
+            <div class="w-1.5 h-4 bg-emerald-400 rounded-full"></div> แก้ไขข้อมูลส่วนตัว
+        </h2>
+        <p class="text-[11px] text-slate-400 font-medium mb-5">ข้อมูลเหล่านี้ใช้สำหรับยืนยันตัวตนกรณีลืมรหัสผ่าน</p>
+
+        {% if success %}
+        <div class="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-bold px-4 py-3 rounded-2xl flex items-center gap-2">
+            <i data-lucide="check-circle" class="w-4 h-4"></i> {{ success }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/settings" class="space-y-3">
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">ชื่อจริง <span class="text-rose-400">*</span></label>
+                <input type="text" name="name" required
+                    value="{{ user.name if user else '' }}"
+                    class="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl px-4 text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    placeholder="ชื่อจริง">
+            </div>
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">นามสกุล</label>
+                <input type="text" name="last_name"
+                    value="{{ user.last_name if user and user.last_name else '' }}"
+                    class="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl px-4 text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    placeholder="นามสกุล">
+            </div>
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">อาชีพ</label>
+                <input type="text" name="occupation"
+                    value="{{ user.occupation if user and user.occupation else '' }}"
+                    class="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl px-4 text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    placeholder="อาชีพ เช่น พยาบาล, นักเรียน">
+            </div>
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">รหัสผ่านใหม่ <span class="text-slate-300">(เว้นว่างถ้าไม่เปลี่ยน)</span></label>
+                <input type="password" name="password"
+                    class="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl px-4 text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    placeholder="รหัสผ่านใหม่">
+            </div>
+            <button type="submit"
+                class="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 mt-2">
+                <i data-lucide="save" class="w-4 h-4"></i> บันทึกข้อมูล
+            </button>
+        </form>
+    </div>
+
+    <!-- Logout Button -->
+    <a href="/logout" class="block w-full bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 text-rose-600 font-extrabold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 active:scale-95 fade-in-up delay-3">
+        <i data-lucide="log-out" class="w-5 h-5"></i> ออกจากระบบ
+    </a>
+
+</div>
+
+<style>
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+
+<script>
+    function updateThemeButtons(theme) {
+        ['light','dark'].forEach(t => {
+            const btn = document.getElementById('btn-theme-' + t);
+            if (!btn) return;
+            const active = (theme === t);
+            btn.classList.toggle('bg-slate-900', active);
+            btn.classList.toggle('text-white', active);
+            btn.classList.toggle('shadow-md', active);
+            btn.classList.toggle('bg-white', !active);
+            btn.classList.toggle('text-slate-700', !active);
+            btn.classList.toggle('border-slate-900', active);
+            btn.classList.toggle('border-slate-200', !active);
+        });
+    }
+
+    function setTheme(theme) {
+        localStorage.setItem('preferredTheme', theme);
+        const body = document.getElementById('appBody');
+        if (theme === 'dark') {
+            body.classList.add('dark-mode');
+        } else {
+            body.classList.remove('dark-mode');
+        }
+        updateThemeButtons(theme);
+        showToast(theme === 'dark' ? '🌙 เปลี่ยนเป็นธีมมืดแล้ว' : '☀️ เปลี่ยนเป็นธีมสว่างแล้ว');
+    }
+
+    function showToast(msg) {
+        let t = document.getElementById('settingsToast');
+        if (!t) {
+            t = document.createElement('div');
+            t.id = 'settingsToast';
+            t.className = 'fixed bottom-28 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-xl z-[200] transition-all duration-300 opacity-0 scale-90';
+            document.body.appendChild(t);
+        }
+        t.textContent = msg;
+        t.classList.remove('opacity-0','scale-90');
+        t.classList.add('opacity-100','scale-100');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => {
+            t.classList.add('opacity-0','scale-90');
+            t.classList.remove('opacity-100','scale-100');
+        }, 2000);
+    }
+
+    function previewSettingsAvatar(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                localStorage.setItem('userAvatar', e.target.result);
+                applySettingsAvatar(e.target.result);
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function applySettingsAvatar(imgData) {
+        if (!imgData) return;
+        document.getElementById('settingsAvatarPlaceholder').classList.add('hidden');
+        const img = document.getElementById('settingsAvatarImage');
+        img.src = imgData;
+        img.classList.remove('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        const theme = localStorage.getItem('preferredTheme') || 'light';
+        updateThemeButtons(theme);
+        const savedAvatar = localStorage.getItem('userAvatar');
+        if (savedAvatar) applySettingsAvatar(savedAvatar);
+    });
+</script>
+
+{% endblock %}

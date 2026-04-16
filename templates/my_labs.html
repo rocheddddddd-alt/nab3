@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block dashboard_content %}
+<div class="min-h-[100dvh] bg-[#F8FAFC] pb-32 font-sans">
+
+    <header class="bg-white/90 backdrop-blur-xl sticky top-0 z-40 border-b border-slate-100 shadow-sm">
+        <div class="max-w-md mx-auto lg:max-w-2xl px-6 py-5 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-black text-slate-900 tracking-tight">ผลการตรวจแล็บ</h1>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">My Lab Results</p>
+            </div>
+            <div class="bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-2xl flex items-center gap-2 shadow-inner">
+                <i data-lucide="flask-conical" class="w-4 h-4 text-emerald-600"></i>
+                <span class="text-sm font-black text-[#064e3b]">{{ labs | length }}</span>
+                <span class="text-[10px] font-bold text-emerald-600 uppercase">ไฟล์</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto lg:max-w-2xl px-4 py-6 space-y-6">
+
+        {% if labs %}
+
+        {% set type_labels = {
+            'epigenetic': ('Epigenetic Age', 'dna', 'from-purple-500 to-indigo-500', 'purple'),
+            'inbody': ('InBody / Body Composition', 'scan-line', 'from-sky-500 to-cyan-500', 'sky'),
+            'other': ('ผลแล็บทั่วไป', 'flask-conical', 'from-emerald-500 to-teal-500', 'emerald')
+        } %}
+
+        {% set pre_labs  = labs | selectattr('period', 'equalto', 'pre')  | list %}
+        {% set post_labs = labs | selectattr('period', 'equalto', 'post') | list %}
+
+        {% for section_label, section_color, section_dot, section_labs in [
+            ('ก่อนเข้าร่วมโปรแกรม',  'emerald', 'bg-emerald-400', pre_labs),
+            ('หลังเข้าร่วมโปรแกรม', 'violet',  'bg-violet-400',  post_labs)
+        ] %}
+        {% if section_labs %}
+        <!-- Section header -->
+        <div class="flex items-center gap-2.5 mt-2">
+            <span class="w-2.5 h-2.5 rounded-full {{ section_dot }} shrink-0"></span>
+            <span class="text-xs font-black text-{{ section_color }}-700 tracking-wide">{{ section_label }}</span>
+            <span class="flex-1 h-px bg-{{ section_color }}-100"></span>
+            <span class="text-[10px] font-bold text-{{ section_color }}-500">{{ section_labs | length }} รายการ</span>
+        </div>
+
+        {% for lab in section_labs %}
+        {% set ltype = lab.lab_type if lab.lab_type in type_labels else 'other' %}
+        {% set lname, licon, lgradient, lcolor = type_labels[ltype] %}
+        <div class="bg-white rounded-[20px] shadow-sm border border-slate-100 overflow-hidden fade-in-up">
+            <!-- Header stripe -->
+            <div class="bg-gradient-to-r {{ lgradient }} px-5 py-3 flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                    <i data-lucide="{{ licon }}" class="w-4 h-4 text-white"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-white font-black text-sm leading-none">{{ lname }}</p>
+                    <p class="text-white/70 text-[10px] font-bold mt-0.5">
+                        {{ lab.uploaded_at[:10] if lab.uploaded_at else '—' }}
+                    </p>
+                </div>
+                <span class="shrink-0 text-[10px] font-black px-2.5 py-1 rounded-full bg-white/25 text-white">
+                    {{ section_label }}
+                </span>
+            </div>
+            <!-- Body -->
+            <div class="px-5 py-4">
+                <p class="text-slate-800 font-bold text-sm truncate mb-1">{{ lab.original_name }}</p>
+                {% if lab.notes %}
+                <p class="text-slate-500 text-[12px] leading-relaxed mb-3">{{ lab.notes }}</p>
+                {% endif %}
+                {% if lab.has_file and lab.url %}
+                <a href="{{ lab.url }}" target="_blank" rel="noopener"
+                   class="inline-flex items-center gap-2 bg-{{ lcolor }}-50 border border-{{ lcolor }}-200 text-{{ lcolor }}-700 font-black text-xs px-4 py-2 rounded-xl hover:bg-{{ lcolor }}-100 transition-all">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    ดาวน์โหลด / เปิดไฟล์
+                </a>
+                {% else %}
+                <span class="inline-flex items-center gap-1.5 text-slate-400 text-xs font-bold">
+                    <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                    บันทึกค่าตัวเลข (ไม่มีไฟล์แนบ)
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+
+        {% else %}
+        <!-- Empty state -->
+        <div class="text-center py-20">
+            <div class="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-5">
+                <i data-lucide="flask-conical" class="w-9 h-9 text-slate-300"></i>
+            </div>
+            <h3 class="text-slate-700 font-black text-lg mb-2">ยังไม่มีผลแล็บ</h3>
+            <p class="text-slate-400 text-sm max-w-xs mx-auto">ผลการตรวจต่างๆ จะถูกอัปโหลดโดยเจ้าหน้าที่ และแสดงที่นี่</p>
+        </div>
+        {% endif %}
+
+    </main>
+</div>
+{% endblock %}

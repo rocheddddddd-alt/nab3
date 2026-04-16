@@ -1,0 +1,451 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    .filter-tab { transition: all 0.2s ease; white-space: nowrap; }
+    .filter-tab.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+    .edu-card { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; }
+    .edu-card:hover { transform: translateY(-3px); box-shadow: 0 16px 40px rgba(0,0,0,0.09); }
+    .edu-card:active { transform: scale(0.97); }
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* Content Viewer — fullscreen overlay from bottom */
+    #contentViewer {
+        position: fixed;
+        inset: 0;
+        z-index: 9990;
+        opacity: 0;
+        pointer-events: none;
+        background: rgba(0,0,0,0.85);
+        backdrop-filter: blur(6px);
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        transition: opacity 0.25s ease;
+    }
+    #contentViewer.open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    #viewerSheet {
+        width: 100%;
+        height: 100dvh;
+        max-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        background: #0f172a;
+        overflow: hidden;
+        transform: translateY(100%);
+        transition: transform 0.35s cubic-bezier(0.22,1,0.36,1);
+    }
+    @media (min-width: 768px) {
+        #contentViewer { align-items: center; }
+        #viewerSheet {
+            width: min(96vw, 1100px);
+            height: 92dvh;
+            border-radius: 20px;
+        }
+    }
+    #contentViewer.open #viewerSheet { transform: translateY(0); }
+
+    /* Rating modal */
+    #scoreModal {
+        position: fixed;
+        inset: 0;
+        z-index: 9995;
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+        background: rgba(0,0,0,0.55);
+        backdrop-filter: blur(4px);
+    }
+    #scoreModal.is-open { display: flex; }
+
+    /* Mobile compact cards */
+    @media (max-width: 640px) {
+        .edu-card .card-thumb { aspect-ratio: 16/9; }
+        .edu-card .card-body { padding: 0.6rem 0.75rem 0.75rem; }
+        .edu-card h3 { font-size: 0.72rem; line-height: 1rem; }
+        .edu-desc { display: none; }
+        .edu-action { display: none; }
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="min-h-[100dvh] bg-[#F8FAFC] pb-32">
+    <div class="max-w-5xl mx-auto px-4 pt-6">
+        <!-- Page title -->
+        <div class="mb-5 fade-in-up flex items-center gap-3">
+            <div class="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                <i data-lucide="graduation-cap" class="w-5 h-5 text-indigo-600"></i>
+            </div>
+            <h1 class="text-xl font-black text-slate-900 leading-none">คลังความรู้ชะลอวัย</h1>
+        </div>
+
+        <!-- Category filter tabs -->
+        <div class="overflow-x-auto hide-scrollbar -mx-4 px-4 mb-5 fade-in-up">
+            <div class="flex gap-2 w-max pb-1">
+                <button onclick="filterCat('ทั้งหมด', this)" class="filter-tab active flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-600 text-[11px] font-bold shadow-sm">
+                    <i data-lucide="layout-grid" class="w-3 h-3"></i> ทั้งหมด
+                </button>
+                <button onclick="filterCat('การออกกำลังกาย', this)" class="filter-tab flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-600 text-[11px] font-bold shadow-sm">
+                    <i data-lucide="dumbbell" class="w-3 h-3"></i> ออกกำลังกาย
+                </button>
+                <button onclick="filterCat('โภชนาการ', this)" class="filter-tab flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-600 text-[11px] font-bold shadow-sm">
+                    <i data-lucide="salad" class="w-3 h-3"></i> โภชนาการ
+                </button>
+                <button onclick="filterCat('การนอนหลับ', this)" class="filter-tab flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-600 text-[11px] font-bold shadow-sm">
+                    <i data-lucide="moon" class="w-3 h-3"></i> การนอน
+                </button>
+                <button onclick="filterCat('สุขภาพใจ', this)" class="filter-tab flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-600 text-[11px] font-bold shadow-sm">
+                    <i data-lucide="heart" class="w-3 h-3"></i> ความเครียด
+                </button>
+            </div>
+        </div>
+
+        <!-- Card grid — 2 columns on mobile, 3 on desktop -->
+        <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 fade-in-up" id="cardGrid">
+            {% if not materials %}
+            <div class="col-span-full py-16 text-center">
+                <div class="w-14 h-14 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i data-lucide="book-open" class="w-6 h-6 text-indigo-300"></i>
+                </div>
+                <p class="text-sm font-bold text-slate-500">ยังไม่มีเนื้อหาในคลังความรู้</p>
+                <p class="text-[11px] text-slate-400 mt-1">แอดมินจะเพิ่มวิดีโอและบทความเร็วๆ นี้</p>
+            </div>
+            {% endif %}
+            {% for item in materials %}
+            {% set is_video = 'youtube' in item.url or 'youtu.be' in item.url %}
+            {% set item_id_str = item.id | string %}
+            <div
+                onclick="openContent('{{ item.url }}', {{ item_id_str }}, '{{ item.title | replace("'", "\\'") | replace('"', '\\"') }}', {{ 'true' if is_video else 'false' }})"
+                class="edu-card content-item bg-white rounded-[16px] overflow-hidden shadow-sm border border-slate-100"
+                data-category="{{ item.category }}"
+            >
+                <!-- Thumbnail -->
+                <div class="card-thumb relative w-full aspect-video bg-slate-100 overflow-hidden">
+                    {% if is_video %}
+                        {% set vid_id = item.url.split('v=')[-1].split('&')[0] if 'v=' in item.url else item.url.split('/')[-1] %}
+                        <img src="https://img.youtube.com/vi/{{ vid_id }}/mqdefault.jpg" alt="{{ item.title }}" class="w-full h-full object-cover" loading="lazy">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <div class="w-9 h-9 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-md pl-0.5">
+                                <i data-lucide="play" class="w-4 h-4 text-red-500 fill-current"></i>
+                            </div>
+                        </div>
+                        <span class="absolute top-2 left-2 bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full">VIDEO</span>
+                    {% else %}
+                        <div class="w-full h-full bg-gradient-to-br from-indigo-100 to-sky-100 flex items-center justify-center">
+                            <i data-lucide="file-text" class="w-8 h-8 text-indigo-300"></i>
+                        </div>
+                        <span class="absolute top-2 left-2 bg-indigo-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full">ARTICLE</span>
+                    {% endif %}
+                </div>
+                <!-- Body -->
+                <div class="card-body p-3">
+                    <p class="text-[8px] font-black text-indigo-500 uppercase tracking-widest mb-1">{{ item.category }}</p>
+                    <h3 class="text-xs font-black text-slate-900 leading-snug line-clamp-2 mb-1.5">{{ item.title }}</h3>
+                    <p class="edu-desc text-[10px] text-slate-400 font-medium leading-relaxed line-clamp-2 mb-2">เนื้อหาจากโครงการ mHealth Anti-Aging</p>
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="edu-action text-[9px] font-black text-indigo-500 uppercase flex items-center gap-0.5">{{ 'WATCH' if is_video else 'READ' }} <i data-lucide="arrow-right" class="w-2.5 h-2.5"></i></span>
+                        <button
+                            type="button"
+                            onclick="event.stopPropagation(); openScoreBox({{ item_id_str }}, '{{ item.title | replace("'", "\\'") | replace('"', '\\"') }}')"
+                            class="inline-flex items-center gap-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-black px-2 py-0.5 rounded-full transition-all"
+                        >
+                            <i data-lucide="star" class="w-2.5 h-2.5"></i> คะแนน
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="emptyMsg" class="hidden mt-4 py-10 text-center">
+            <i data-lucide="search-x" class="w-8 h-8 text-slate-300 mx-auto mb-2"></i>
+            <p class="text-xs font-bold text-slate-500">ยังไม่มีเนื้อหาในหมวดหมู่นี้</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== Content Viewer Overlay ========== -->
+<div id="contentViewer">
+    <div id="viewerSheet" style="padding-top: env(safe-area-inset-top, 0px);">
+        <!-- Header bar -->
+        <div class="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0 bg-[#0f172a]">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div id="viewerIcon" class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-red-500/20">
+                    <i id="viewerIconI" data-lucide="play-circle" class="w-3.5 h-3.5 text-red-400"></i>
+                </div>
+                <p id="viewerTitle" class="text-sm font-black text-white truncate"></p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 ml-2">
+                <button id="viewerScoreBtn" type="button" onclick="openViewerScore()" class="h-7 px-2.5 rounded-xl bg-emerald-500/20 text-emerald-300 text-[10px] font-black flex items-center gap-1 hover:bg-emerald-500/30 transition-all hidden">
+                    <i data-lucide="star" class="w-3 h-3"></i> ให้คะแนน
+                </button>
+                <a id="viewerExternal" href="#" target="_blank" rel="noopener" class="h-7 px-2.5 rounded-xl bg-white/10 text-white text-[10px] font-black flex items-center gap-1 hover:bg-white/20 transition-all">
+                    <i data-lucide="external-link" class="w-3 h-3"></i> เปิดภายนอก
+                </a>
+                <button onclick="closeViewer()" class="w-7 h-7 rounded-xl bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+        </div>
+        <!-- Content area -->
+        <div id="viewerContent" class="flex-1 relative overflow-hidden bg-black">
+            <!-- YouTube -->
+            <div id="ytContainer" class="hidden absolute inset-0 bg-black">
+                <iframe id="ytFrame" allow="autoplay; fullscreen; accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full" style="border:none;"></iframe>
+            </div>
+            <!-- Article -->
+            <div id="articleContainer" class="hidden absolute inset-0 flex flex-col">
+                <iframe id="articleFrame" class="flex-1 w-full" style="border:none;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+                <div id="articleFallback" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-5 bg-[#0f172a] px-8 text-center">
+                    <div class="w-14 h-14 bg-indigo-900/50 rounded-full flex items-center justify-center">
+                        <i data-lucide="globe" class="w-7 h-7 text-indigo-400"></i>
+                    </div>
+                    <div>
+                        <p class="font-black text-white text-sm mb-1">ไม่สามารถโหลดในแอปได้</p>
+                        <p class="text-slate-400 text-xs">เว็บไซต์นี้ไม่อนุญาตให้โหลดในแอป</p>
+                    </div>
+                    <a id="fallbackLink" href="#" target="_blank" rel="noopener" class="h-11 px-7 bg-indigo-500 text-white font-black rounded-full flex items-center gap-2 shadow-lg shadow-indigo-500/30 text-sm">
+                        <i data-lucide="external-link" class="w-4 h-4"></i> เปิดในเบราว์เซอร์
+                    </a>
+                </div>
+            </div>
+            <!-- Loader -->
+            <div id="viewerLoader" class="absolute inset-0 flex flex-col items-center justify-center bg-[#0f172a] gap-3">
+                <div class="w-9 h-9 border-2 border-indigo-500/30 border-t-indigo-400 rounded-full animate-spin"></div>
+                <p class="text-slate-400 text-xs font-bold">กำลังโหลด...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== Rating Modal ========== -->
+<div id="scoreModal" aria-modal="true">
+    <div onclick="closeScoreModal()" class="absolute inset-0"></div>
+    <div class="relative w-full max-w-md bg-white rounded-t-[24px] p-5 shadow-2xl" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));">
+        <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4"></div>
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <p class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">ให้คะแนนสื่อ</p>
+                <h3 id="scoreModalTitle" class="text-sm font-black text-slate-900 mt-0.5 line-clamp-2"></h3>
+            </div>
+            <button type="button" onclick="closeScoreModal()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center ml-3 shrink-0">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+        </div>
+        <div class="flex justify-center gap-3 mb-4" id="scoreStars"></div>
+        <p class="text-[11px] text-slate-400 font-medium text-center mb-4">ให้คะแนนได้ 1 ครั้งต่อ 1 สื่อ</p>
+        <button type="button" onclick="submitScore()" class="w-full h-12 rounded-2xl bg-emerald-600 text-white font-black text-sm">ยืนยันคะแนน</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentContent = null;
+    let currentScore = 0;
+    const RATED_KEY = 'rated_media_items_v1';
+    const scores = JSON.parse(localStorage.getItem(RATED_KEY) || '{}');
+
+    /* ── Filter ── */
+    function filterCat(cat, btn) {
+        document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        let vis = 0;
+        document.querySelectorAll('.content-item').forEach(card => {
+            const c = card.dataset.category;
+            const show = cat === 'ทั้งหมด' || c === cat;
+            card.style.display = show ? '' : 'none';
+            if (show) vis++;
+        });
+        document.getElementById('emptyMsg').classList.toggle('hidden', vis > 0);
+        lucide.createIcons();
+    }
+
+    /* ── YouTube ID helper ── */
+    function getYTId(url) {
+        const p = [
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+            /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/
+        ];
+        for (const re of p) { const m = url.match(re); if (m) return m[1]; }
+        return null;
+    }
+
+    /* ── Award video points (one-time per video) ── */
+    const WATCHED_KEY = 'watched_items_v1';
+    const watchedLocal = JSON.parse(localStorage.getItem(WATCHED_KEY) || '{}');
+
+    function awardVideoPoints(itemId) {
+        if (watchedLocal[itemId]) return;
+        fetch('/api/mark_video_watched', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ material_id: itemId })
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                watchedLocal[itemId] = true;
+                localStorage.setItem(WATCHED_KEY, JSON.stringify(watchedLocal));
+                const toast = document.createElement('div');
+                toast.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-xs font-black px-4 py-2 rounded-full shadow-lg z-[9999] flex items-center gap-2 transition-opacity duration-500';
+                toast.innerHTML = '<span>🎉</span> +10 คะแนน จากการดูคลิปนี้!';
+                document.body.appendChild(toast);
+                setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 2500);
+            }
+        }).catch(() => {});
+    }
+
+    /* ── Open viewer ── */
+    function openContent(url, itemId, title, isVideo) {
+        currentContent = { url, itemId, title, isVideo };
+        const viewer  = document.getElementById('contentViewer');
+        const titleEl = document.getElementById('viewerTitle');
+        const extLink = document.getElementById('viewerExternal');
+        const icon    = document.getElementById('viewerIcon');
+        const iconI   = document.getElementById('viewerIconI');
+        const ytBox   = document.getElementById('ytContainer');
+        const arBox   = document.getElementById('articleContainer');
+        const arFb    = document.getElementById('articleFallback');
+        const loader  = document.getElementById('viewerLoader');
+        const scoreBtn= document.getElementById('viewerScoreBtn');
+
+        titleEl.textContent = title;
+        extLink.href = url;
+        document.getElementById('fallbackLink').href = url;
+        scoreBtn.classList.add('hidden');
+        ytBox.classList.add('hidden');
+        arBox.classList.add('hidden');
+        arFb.classList.add('hidden');
+        loader.classList.remove('hidden');
+
+        // Show already-rated state
+        if (scores[itemId]) {
+            scoreBtn.innerHTML = `<i data-lucide="star" class="w-3 h-3 fill-amber-400 text-amber-400"></i> ${scores[itemId]}★`;
+            scoreBtn.classList.remove('hidden');
+        }
+
+        if (isVideo) {
+            icon.className = 'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-red-500/20';
+            iconI.setAttribute('data-lucide', 'play-circle');
+            iconI.className = 'w-3.5 h-3.5 text-red-400';
+            const vid = getYTId(url);
+            if (vid) {
+                const frame = document.getElementById('ytFrame');
+                frame.src = `https://www.youtube.com/embed/${vid}?autoplay=1&rel=0&enablejsapi=1`;
+                frame.onload = () => {
+                    loader.classList.add('hidden');
+                    if (!scores[itemId]) scoreBtn.classList.remove('hidden');
+                    // Award points when video starts playing
+                    awardVideoPoints(itemId);
+                };
+                ytBox.classList.remove('hidden');
+            } else {
+                _loadArticle(url);
+            }
+        } else {
+            icon.className = 'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-indigo-500/20';
+            iconI.setAttribute('data-lucide', 'file-text');
+            iconI.className = 'w-3.5 h-3.5 text-indigo-400';
+            _loadArticle(url);
+        }
+
+        viewer.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        lucide.createIcons();
+    }
+
+    function _loadArticle(url) {
+        const arBox  = document.getElementById('articleContainer');
+        const frame  = document.getElementById('articleFrame');
+        const arFb   = document.getElementById('articleFallback');
+        const loader = document.getElementById('viewerLoader');
+        const scoreBtn = document.getElementById('viewerScoreBtn');
+        arBox.classList.remove('hidden');
+        frame.src = url;
+        const t = setTimeout(() => { loader.classList.add('hidden'); arFb.classList.remove('hidden'); }, 9000);
+        frame.onload = () => {
+            clearTimeout(t);
+            loader.classList.add('hidden');
+            try {
+                const len = frame.contentDocument?.body?.innerHTML?.length;
+                if (!len) { arFb.classList.remove('hidden'); return; }
+            } catch(e) {}
+            if (!scores[currentContent?.itemId]) scoreBtn.classList.remove('hidden');
+        };
+        frame.onerror = () => { clearTimeout(t); loader.classList.add('hidden'); arFb.classList.remove('hidden'); };
+    }
+
+    /* ── Close viewer ── */
+    function closeViewer() {
+        const viewer = document.getElementById('contentViewer');
+        viewer.classList.remove('open');
+        document.body.style.overflow = '';
+        setTimeout(() => {
+            document.getElementById('ytFrame').src = '';
+            document.getElementById('articleFrame').src = '';
+        }, 380);
+    }
+    document.getElementById('contentViewer').addEventListener('click', e => {
+        if (e.target === document.getElementById('contentViewer')) closeViewer();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeViewer(); closeScoreModal(); } });
+
+    /* ── Rating from viewer header ── */
+    function openViewerScore() {
+        if (!currentContent) return;
+        openScoreBox(currentContent.itemId, currentContent.title);
+    }
+
+    /* ── Rating modal ── */
+    function openScoreBox(itemId, title) {
+        if (scores[itemId]) { alert('คุณให้คะแนนสื่อนี้แล้ว (' + scores[itemId] + '★)'); return; }
+        currentContent = currentContent || {};
+        currentContent.itemId = itemId;
+        currentContent.title = title;
+        currentScore = 0;
+        document.getElementById('scoreModalTitle').textContent = title;
+        renderStars();
+        document.getElementById('scoreModal').classList.add('is-open');
+        lucide.createIcons();
+    }
+    function closeScoreModal() {
+        document.getElementById('scoreModal').classList.remove('is-open');
+    }
+    function renderStars() {
+        const box = document.getElementById('scoreStars');
+        box.innerHTML = '';
+        for (let i = 1; i <= 5; i++) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `w-12 h-12 rounded-2xl border text-base font-black transition-all ${i <= currentScore ? 'bg-amber-400 border-amber-400 text-white scale-105' : 'bg-white border-slate-200 text-slate-400 hover:border-amber-300'}`;
+            btn.innerHTML = `${i}<span class="text-sm">★</span>`;
+            btn.onclick = () => { currentScore = i; renderStars(); };
+            box.appendChild(btn);
+        }
+    }
+    function submitScore() {
+        if (!currentContent?.itemId || !currentScore) { alert('กรุณาเลือกคะแนน'); return; }
+        scores[currentContent.itemId] = currentScore;
+        localStorage.setItem(RATED_KEY, JSON.stringify(scores));
+        // Update viewer score button
+        const scoreBtn = document.getElementById('viewerScoreBtn');
+        if (scoreBtn) {
+            scoreBtn.innerHTML = `<i data-lucide="star" class="w-3 h-3 fill-amber-400 text-amber-400"></i> ${currentScore}★`;
+            lucide.createIcons();
+        }
+        closeScoreModal();
+        // Short success toast
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-xs font-black px-4 py-2 rounded-full shadow-lg z-[9999] transition-opacity duration-500';
+        toast.textContent = `บันทึกคะแนน ${currentScore}★ แล้ว`;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 2000);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); });
+</script>
+{% endblock %}

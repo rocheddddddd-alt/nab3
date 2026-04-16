@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block dashboard_content %}
+<div class="min-h-[100dvh] bg-[#F8FAFC] pb-32">
+
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-violet-700 to-purple-600 px-4 pt-5 pb-6">
+        <div class="max-w-md mx-auto lg:max-w-none">
+            <div class="flex items-center gap-3 mb-4">
+                <a href="/dashboard" class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-white hover:bg-white/30 transition-colors">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                </a>
+                <div>
+                    <h1 class="text-lg font-black text-white leading-none">อันดับคะแนนสะสม</h1>
+                    <p class="text-[10px] font-bold text-violet-200 uppercase tracking-widest mt-0.5">Leaderboard · Cumulative Points</p>
+                </div>
+                <div class="ml-auto w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                    <i data-lucide="trophy" class="w-4 h-4 text-yellow-300"></i>
+                </div>
+            </div>
+
+            <!-- My rank card -->
+            <div id="myRankCard" class="bg-white/15 rounded-[20px] p-4 border border-white/20 backdrop-blur-sm">
+                <p class="text-[9px] font-black text-violet-200 uppercase tracking-widest mb-2">อันดับของคุณ</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-baseline gap-2">
+                        <span id="myRankNum" class="text-5xl font-black text-white tabular-nums">
+                            {% if my_rank %}{{ my_rank.rank }}{% else %}—{% endif %}
+                        </span>
+                        <div>
+                            <p class="text-sm font-black text-white leading-none">
+                                {% if my_rank %}{{ my_rank.name }}{% endif %}
+                            </p>
+                            <p id="myRankDetail" class="text-[10px] text-violet-200 font-medium mt-0.5">
+                                {% if my_rank %}{{ my_rank.points }} คะแนน · จาก {{ ranked | length }} คน{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div id="myRankEmoji" class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center border border-white/20 text-2xl">
+                        {% if my_rank and my_rank.rank == 1 %}🥇{% elif my_rank and my_rank.rank == 2 %}🥈{% elif my_rank and my_rank.rank == 3 %}🥉{% else %}⭐{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mode Toggle -->
+    <div class="max-w-md mx-auto lg:max-w-none px-4 mt-4 mb-3">
+        <div class="bg-slate-100 p-1 rounded-2xl flex gap-1 shadow-inner">
+            <button id="btn-total" onclick="switchMode('total')"
+                class="flex-1 py-2.5 rounded-xl text-xs font-black transition-all bg-white text-violet-700 shadow-sm flex items-center justify-center gap-1.5">
+                <i data-lucide="trophy" class="w-3.5 h-3.5"></i> คะแนนรวม
+            </button>
+            <button id="btn-weekly" onclick="switchMode('weekly')"
+                class="flex-1 py-2.5 rounded-xl text-xs font-black transition-all text-slate-500 flex items-center justify-center gap-1.5">
+                <i data-lucide="calendar" class="w-3.5 h-3.5"></i> สัปดาห์นี้
+            </button>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="max-w-md mx-auto lg:max-w-none px-4">
+        <div class="bg-white rounded-[20px] shadow-md border border-slate-100 overflow-hidden">
+            <!-- Table header -->
+            <div class="grid grid-cols-[44px_1fr_80px] gap-2 px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">อันดับ</span>
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">ชื่อ-สกุล</span>
+                <span id="pointsHeader" class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">คะแนน</span>
+            </div>
+
+            <!-- Total mode rows -->
+            <div id="rows-total">
+                {% for r in ranked %}
+                <div class="grid grid-cols-[44px_1fr_80px] gap-2 px-4 py-3 items-center
+                    {% if not loop.last %}border-b border-slate-50{% endif %}
+                    {% if r.is_me %}bg-violet-50{% endif %}">
+                    <!-- Rank -->
+                    <div class="flex justify-center">
+                        {% if r.rank == 1 %}<span class="text-xl">🥇</span>
+                        {% elif r.rank == 2 %}<span class="text-xl">🥈</span>
+                        {% elif r.rank == 3 %}<span class="text-xl">🥉</span>
+                        {% else %}<span class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-[11px] font-black text-slate-500">{{ r.rank }}</span>
+                        {% endif %}
+                    </div>
+                    <!-- Name -->
+                    <div class="min-w-0">
+                        <p class="text-sm font-black {% if r.is_me %}text-violet-700{% else %}text-slate-800{% endif %} leading-snug break-words">
+                            {{ r.name }}{% if r.is_me %}&nbsp;<span class="text-[9px] font-black text-violet-500 bg-violet-100 px-1.5 py-0.5 rounded-full">คุณ</span>{% endif %}
+                        </p>
+                        <p class="text-[10px] text-slate-400 font-medium mt-0.5 break-all">{{ r.email }}</p>
+                    </div>
+                    <!-- Points -->
+                    <div class="text-right">
+                        <p class="text-base font-black {% if r.is_me %}text-violet-700{% else %}text-slate-800{% endif %} tabular-nums leading-none">{{ r.points }}</p>
+                        <p class="text-[9px] text-slate-400 font-bold">คะแนน</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="py-16 text-center text-slate-400">
+                    <i data-lucide="trophy" class="w-10 h-10 mx-auto mb-3 text-slate-200"></i>
+                    <p class="text-sm font-bold">ยังไม่มีข้อมูลอันดับ</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Weekly mode rows -->
+            <div id="rows-weekly" class="hidden">
+                {% for r in weekly_ranked %}
+                <div class="grid grid-cols-[44px_1fr_80px] gap-2 px-4 py-3 items-center
+                    {% if not loop.last %}border-b border-slate-50{% endif %}
+                    {% if r.is_me %}bg-violet-50{% endif %}">
+                    <!-- Rank -->
+                    <div class="flex justify-center">
+                        {% if r.rank == 1 %}<span class="text-xl">🥇</span>
+                        {% elif r.rank == 2 %}<span class="text-xl">🥈</span>
+                        {% elif r.rank == 3 %}<span class="text-xl">🥉</span>
+                        {% else %}<span class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-[11px] font-black text-slate-500">{{ r.rank }}</span>
+                        {% endif %}
+                    </div>
+                    <!-- Name -->
+                    <div class="min-w-0">
+                        <p class="text-sm font-black {% if r.is_me %}text-violet-700{% else %}text-slate-800{% endif %} leading-snug break-words">
+                            {{ r.name }}{% if r.is_me %}&nbsp;<span class="text-[9px] font-black text-violet-500 bg-violet-100 px-1.5 py-0.5 rounded-full">คุณ</span>{% endif %}
+                        </p>
+                        <p class="text-[10px] text-slate-400 font-medium mt-0.5 break-all">{{ r.email }}</p>
+                    </div>
+                    <!-- Points -->
+                    <div class="text-right">
+                        <p class="text-base font-black {% if r.is_me %}text-violet-700{% else %}text-slate-800{% endif %} tabular-nums leading-none">{{ r.points }}</p>
+                        <p class="text-[9px] text-slate-400 font-bold">คะแนน</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="py-16 text-center text-slate-400">
+                    <i data-lucide="calendar" class="w-10 h-10 mx-auto mb-3 text-slate-200"></i>
+                    <p class="text-sm font-bold">ยังไม่มีกิจกรรมสัปดาห์นี้</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <p id="footerNote" class="text-center text-[10px] text-slate-400 font-medium mt-4 pb-2">
+            แสดงทุกคนที่มีคะแนนในระบบ · อัปเดตแบบเรียลไทม์
+        </p>
+    </div>
+</div>
+
+<script>
+const totalRanked   = {{ ranked | tojson }};
+const weeklyRanked  = {{ weekly_ranked | tojson }};
+const myRankTotal   = {{ my_rank | tojson if my_rank else 'null' }};
+const myRankWeekly  = {{ my_weekly | tojson if my_weekly else 'null' }};
+
+function rankEmoji(rank) {
+    if (!rank) return '⭐';
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return '⭐';
+}
+
+function switchMode(mode) {
+    const btnTotal   = document.getElementById('btn-total');
+    const btnWeekly  = document.getElementById('btn-weekly');
+    const rowsTotal  = document.getElementById('rows-total');
+    const rowsWeekly = document.getElementById('rows-weekly');
+    const myRankNum  = document.getElementById('myRankNum');
+    const myDetail   = document.getElementById('myRankDetail');
+    const myEmoji    = document.getElementById('myRankEmoji');
+    const header     = document.getElementById('pointsHeader');
+    const footer     = document.getElementById('footerNote');
+
+    if (mode === 'total') {
+        btnTotal.classList.add('bg-white','text-violet-700','shadow-sm');
+        btnTotal.classList.remove('text-slate-500');
+        btnWeekly.classList.remove('bg-white','text-violet-700','shadow-sm');
+        btnWeekly.classList.add('text-slate-500');
+
+        rowsTotal.classList.remove('hidden');
+        rowsWeekly.classList.add('hidden');
+
+        const me = myRankTotal;
+        myRankNum.textContent = me ? me.rank : '—';
+        myDetail.textContent  = me ? me.points + ' คะแนน · จาก ' + totalRanked.length + ' คน' : '';
+        if (myEmoji) myEmoji.textContent = rankEmoji(me ? me.rank : null);
+        header.textContent = 'คะแนน';
+        footer.textContent = 'แสดงทุกคนที่มีคะแนนในระบบ · อัปเดตแบบเรียลไทม์';
+    } else {
+        btnWeekly.classList.add('bg-white','text-violet-700','shadow-sm');
+        btnWeekly.classList.remove('text-slate-500');
+        btnTotal.classList.remove('bg-white','text-violet-700','shadow-sm');
+        btnTotal.classList.add('text-slate-500');
+
+        rowsWeekly.classList.remove('hidden');
+        rowsTotal.classList.add('hidden');
+
+        const weekStart = '{{ week_start }}';
+        const me = myRankWeekly;
+        myRankNum.textContent = me ? me.rank : '—';
+        myDetail.textContent  = me
+            ? me.points + ' คะแนน สัปดาห์นี้ · จาก ' + weeklyRanked.length + ' คน'
+            : 'ยังไม่มีกิจกรรมสัปดาห์นี้';
+        if (myEmoji) myEmoji.textContent = rankEmoji(me ? me.rank : null);
+        header.textContent = 'คะแนนสัปดาห์';
+        footer.textContent = 'นับตั้งแต่ ' + weekStart + ' · รีเซ็ตทุกวันอาทิตย์เที่ยงคืน';
+    }
+    lucide.createIcons();
+}
+
+document.addEventListener('DOMContentLoaded', () => { switchMode('total'); });
+</script>
+{% endblock %}
