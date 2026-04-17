@@ -87,18 +87,110 @@
 
 {% block scripts %}
 <script src="https://unpkg.com/lucide@latest"></script>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="fixed inset-0 z-[9999] flex-col items-center justify-center hidden"
+     style="background: linear-gradient(135deg, #064e3b 0%, #065f46 40%, #047857 100%);">
+  <div class="flex flex-col items-center gap-6 px-8 w-full max-w-xs">
+
+    <!-- Logo pulse -->
+    <div class="relative flex items-center justify-center">
+      <div class="absolute w-24 h-24 rounded-full bg-white/10 animate-ping" style="animation-duration:1.4s;"></div>
+      <div class="absolute w-20 h-20 rounded-full bg-white/15 animate-ping" style="animation-duration:1.8s;animation-delay:0.3s;"></div>
+      <div class="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center shadow-2xl border border-white/30">
+        <span class="text-3xl">🌿</span>
+      </div>
+    </div>
+
+    <!-- App name -->
+    <div class="text-center">
+      <p class="text-white/60 text-[11px] font-bold uppercase tracking-[0.2em] mb-1">mHealth Anti-Aging</p>
+      <p id="loadingStep" class="text-white text-sm font-bold">กำลังตรวจสอบตัวตน...</p>
+    </div>
+
+    <!-- Percentage circle -->
+    <div class="relative w-28 h-28">
+      <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="8"/>
+        <circle id="progressCircle" cx="50" cy="50" r="42" fill="none"
+          stroke="white" stroke-width="8" stroke-linecap="round"
+          stroke-dasharray="264" stroke-dashoffset="264"
+          style="transition: stroke-dashoffset 0.4s ease;"/>
+      </svg>
+      <div class="absolute inset-0 flex flex-col items-center justify-center">
+        <span id="loadingPct" class="text-white text-2xl font-black">0%</span>
+      </div>
+    </div>
+
+    <!-- Step dots -->
+    <div class="flex gap-2 items-center">
+      <div id="dot1" class="w-2 h-2 rounded-full bg-white/30 transition-all duration-300"></div>
+      <div id="dot2" class="w-2 h-2 rounded-full bg-white/30 transition-all duration-300"></div>
+      <div id="dot3" class="w-2 h-2 rounded-full bg-white/30 transition-all duration-300"></div>
+      <div id="dot4" class="w-2 h-2 rounded-full bg-white/30 transition-all duration-300"></div>
+    </div>
+
+  </div>
+</div>
+
 <script>
 lucide.createIcons();
+
+const STEPS = [
+  { pct: 20, text: 'กำลังตรวจสอบตัวตน...', dot: 'dot1' },
+  { pct: 50, text: 'โหลดข้อมูลโปรไฟล์...', dot: 'dot2' },
+  { pct: 75, text: 'เตรียมแดชบอร์ด...', dot: 'dot3' },
+  { pct: 95, text: 'เกือบเสร็จแล้ว...', dot: 'dot4' },
+];
+
+function showLoadingOverlay() {
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.remove('hidden');
+  overlay.classList.add('flex');
+
+  const circle = document.getElementById('progressCircle');
+  const pctEl = document.getElementById('loadingPct');
+  const stepEl = document.getElementById('loadingStep');
+  const circumference = 264;
+
+  let stepIndex = 0;
+
+  function setProgress(pct, text, dotId) {
+    const offset = circumference - (pct / 100) * circumference;
+    circle.style.strokeDashoffset = offset;
+    pctEl.textContent = pct + '%';
+    if (text) stepEl.textContent = text;
+    if (dotId) {
+      document.getElementById(dotId).classList.remove('bg-white/30');
+      document.getElementById(dotId).classList.add('bg-white', 'scale-125');
+    }
+  }
+
+  // Animate through steps
+  function runStep(i) {
+    if (i >= STEPS.length) return;
+    const s = STEPS[i];
+    setTimeout(() => {
+      setProgress(s.pct, s.text, s.dot);
+      runStep(i + 1);
+    }, i === 0 ? 100 : 500);
+  }
+  runStep(0);
+
+  return { setProgress };
+}
 
 document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = document.getElementById('loginBtn');
     const btnText = document.getElementById('loginBtnText');
+    const btnIcon = document.getElementById('loginBtnIcon');
     const errBox = document.getElementById('loginError');
     const errMsg = document.getElementById('loginErrorMsg');
     errBox.classList.add('hidden');
     btn.disabled = true;
-    btnText.textContent = 'กำลังเข้าสู่ระบบ...';
+    btnText.textContent = 'กำลังตรวจสอบ...';
+    if (btnIcon) btnIcon.style.display = 'none';
 
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
@@ -112,19 +204,30 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         const data = await resp.json();
         if (data.ok) {
             localStorage.setItem('auth_token', data.token);
+            const loader = showLoadingOverlay();
             const sep = data.redirect.includes('?') ? '&' : '?';
-            window.location.href = data.redirect + sep + '_t=' + encodeURIComponent(data.token);
+            const target = data.redirect + sep + '_t=' + encodeURIComponent(data.token);
+            // Complete to 100% then redirect
+            setTimeout(() => {
+              loader.setProgress(100, 'ยินดีต้อนรับ! 🎉', null);
+              document.getElementById('loadingPct').textContent = '100%';
+            }, 2200);
+            setTimeout(() => {
+              window.location.href = target;
+            }, 2700);
         } else {
             errMsg.textContent = data.error || 'เข้าสู่ระบบไม่สำเร็จ';
             errBox.classList.remove('hidden');
             btn.disabled = false;
             btnText.textContent = 'เข้าสู่ระบบ';
+            if (btnIcon) btnIcon.style.display = '';
         }
     } catch (err) {
         errMsg.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
         errBox.classList.remove('hidden');
         btn.disabled = false;
         btnText.textContent = 'เข้าสู่ระบบ';
+        if (btnIcon) btnIcon.style.display = '';
     }
 });
 </script>
