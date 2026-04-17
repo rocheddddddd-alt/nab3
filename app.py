@@ -1249,6 +1249,13 @@ def api_get_messages():
         "FROM social_shares ss LEFT JOIN users u ON u.id = ss.user_id "
         "ORDER BY ss.created_at ASC LIMIT 60"
     ).fetchall()
+    if 'chat_last_read_id' not in session:
+        try:
+            u_row = conn.execute("SELECT chat_last_read_id FROM users WHERE id=%s", (session['user_id'],)).fetchone()
+            session['chat_last_read_id'] = int(u_row['chat_last_read_id'] or 0) if u_row else 0
+            session.modified = True
+        except Exception:
+            session['chat_last_read_id'] = 0
     conn.close()
     last_read_id = session.get('chat_last_read_id', 0)
     result = []
@@ -1358,10 +1365,18 @@ def api_mark_chat_read():
         return jsonify({'ok': False}), 401
     data = request.get_json(silent=True) or {}
     max_id = int(data.get('max_id', 0))
-    if max_id > session.get('chat_last_read_id', 0):
+    user_id = session['user_id']
+    current = session.get('chat_last_read_id', 0)
+    if max_id > current:
         session['chat_last_read_id'] = max_id
         session.modified = True
-    return jsonify({'ok': True, 'last_read_id': session['chat_last_read_id']})
+        try:
+            conn = get_db()
+            conn.execute("UPDATE users SET chat_last_read_id=%s WHERE id=%s", (max_id, user_id))
+            conn.close()
+        except Exception:
+            pass
+    return jsonify({'ok': True, 'last_read_id': session.get('chat_last_read_id', max_id)})
 
 @app.route('/api/edit_message/<int:msg_id>', methods=['POST'])
 def api_edit_message(msg_id):

@@ -63,6 +63,7 @@ _SCHEMAS = [
     "CREATE TABLE IF NOT EXISTS video_watches (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, material_id BIGINT NOT NULL, watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, material_id))",
     "CREATE TABLE IF NOT EXISTS challenges (id BIGSERIAL PRIMARY KEY, user_id BIGINT, type TEXT, date TEXT)",
     "CREATE TABLE IF NOT EXISTS notifications (id BIGSERIAL PRIMARY KEY, user_id BIGINT, message TEXT, type TEXT, is_read INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_last_read_id BIGINT DEFAULT 0",
 ]
 
 # ─────────────────────────────────────────────────────────────
