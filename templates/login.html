@@ -1,45 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 
-<!-- Page Splash Screen -->
-<div id="pageSplash" class="fixed inset-0 z-[9998] flex flex-col items-center justify-center"
-     style="background: linear-gradient(160deg, #022c22 0%, #064e3b 50%, #065f46 100%);">
-  <div class="flex flex-col items-center gap-5 px-8 w-full max-w-xs">
-    <div class="relative flex items-center justify-center mb-2">
-      <div class="absolute w-28 h-28 rounded-full bg-emerald-400/10 animate-ping" style="animation-duration:1.6s;"></div>
-      <div class="absolute w-20 h-20 rounded-full bg-emerald-300/10 animate-ping" style="animation-duration:2.2s;animation-delay:0.4s;"></div>
-      {% if app_settings.logo_path %}
-      <div class="w-16 h-16 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 relative z-10">
-        <img src="{{ app_settings.logo_path }}" class="w-full h-full object-cover">
-      </div>
-      {% else %}
-      <div class="w-16 h-16 bg-white/15 backdrop-blur rounded-2xl flex items-center justify-center shadow-2xl border border-white/25 relative z-10">
-        <span class="text-4xl">🌿</span>
-      </div>
-      {% endif %}
-    </div>
-    <div class="text-center">
-      <h1 class="text-white text-xl font-black tracking-tight">{{ app_settings.app_name }}</h1>
-      <p class="text-emerald-300/80 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">Multidomain Anti-Aging Program</p>
-    </div>
-    <!-- Progress circle -->
-    <div class="relative w-24 h-24 my-1">
-      <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="7"/>
-        <circle id="splashCircle" cx="50" cy="50" r="40" fill="none"
-          stroke="#34d399" stroke-width="7" stroke-linecap="round"
-          stroke-dasharray="251" stroke-dashoffset="251"
-          style="transition: stroke-dashoffset 0.05s linear;"/>
-      </svg>
-      <div class="absolute inset-0 flex items-center justify-center">
-        <span id="splashPct" class="text-white text-xl font-black">0%</span>
-      </div>
-    </div>
-    <p id="splashStep" class="text-emerald-200/70 text-xs font-semibold tracking-wide">กำลังเริ่มต้นระบบ...</p>
-  </div>
-</div>
-
-<div id="mainContent" class="min-h-[100dvh] bg-white flex flex-col p-6 relative overflow-hidden font-sans selection:bg-[#064e3b]/20" style="opacity:0;transition:opacity 0.5s ease;">
+<div id="mainContent" class="min-h-[100dvh] bg-white flex flex-col p-6 relative overflow-hidden font-sans selection:bg-[#064e3b]/20">
 
   <div class="absolute top-0 right-0 w-[800px] h-[800px] bg-slate-50 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3"></div>
   <div class="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-50/50 rounded-full blur-3xl -z-10 -translate-x-1/3 translate-y-1/3"></div>
@@ -97,9 +59,11 @@
                class="w-full h-[56px] bg-[#F8FAFC] border border-slate-200 rounded-2xl px-5 focus:outline-none focus:border-[#064e3b] focus:bg-white focus:ring-4 focus:ring-[#064e3b]/10 transition-all font-bold text-slate-900 placeholder:text-slate-400 shadow-sm text-[15px]">
       </div>
 
-      <button type="submit" id="loginBtn" class="w-full h-[56px] bg-[#064e3b] text-white hover:bg-emerald-900 shadow-xl shadow-emerald-900/20 rounded-2xl font-black tracking-wide transition-all duration-200 active:scale-[0.98] text-[15px] mt-6 flex items-center justify-center gap-2">
-        <span id="loginBtnText">เข้าสู่ระบบ</span>
-        <i data-lucide="arrow-right" class="w-4 h-4" id="loginBtnIcon"></i>
+      <button type="submit" id="loginBtn" class="relative w-full h-[56px] bg-[#064e3b] text-white shadow-xl shadow-emerald-900/20 rounded-2xl font-black tracking-wide transition-all duration-200 active:scale-[0.98] text-[15px] mt-6 overflow-hidden flex items-center justify-center gap-2">
+        <div id="btnProgressBar" class="absolute left-0 top-0 h-full bg-emerald-600/50 transition-all duration-150 ease-out" style="width:0%;"></div>
+        <span id="loginBtnText" class="relative z-10">เข้าสู่ระบบ</span>
+        <i data-lucide="arrow-right" class="w-4 h-4 relative z-10" id="loginBtnIcon"></i>
+        <span id="loginBtnPct" class="relative z-10 text-emerald-200 text-sm font-black hidden"></span>
       </button>
     </form>
 
@@ -127,212 +91,124 @@
 {% block scripts %}
 <script src="https://unpkg.com/lucide@latest"></script>
 <script>
-// ── Page Splash — ตรวจสอบ token แล้วค่อยโหลดหรือแสดงฟอร์ม ──
-(function() {
-  const token  = localStorage.getItem('auth_token');
-  const splash = document.getElementById('pageSplash');
-  const main   = document.getElementById('mainContent');
-
-  function showForm() {
-    splash.remove();
-    main.style.opacity = '1';
-  }
-
-  // ไม่มี token = ออกจากระบบแล้ว → แสดงฟอร์มเลย ไม่โหลด
-  if (!token) { showForm(); return; }
-
-  // มี token → ตรวจสอบกับ server ก่อน
-  fetch('/api/check_session', { headers: { 'Authorization': 'Bearer ' + token } })
-    .then(r => {
-      if (!r.ok) throw new Error('invalid');
-      return r.json();
-    })
-    .then(data => {
-      if (!data.valid) throw new Error('invalid');
-
-      // token ยังใช้ได้ → เริ่ม splash animation แล้วไป dashboard
-      const circle = document.getElementById('splashCircle');
-      const pctEl  = document.getElementById('splashPct');
-      const stepEl = document.getElementById('splashStep');
-      const circ   = 251;
-      const msgs   = [
-        [20,  'ตรวจสอบการเข้าสู่ระบบ...'],
-        [45,  'โหลดข้อมูลผู้ใช้...'],
-        [70,  'เตรียมแดชบอร์ด...'],
-        [90,  'เกือบพร้อมแล้ว...'],
-        [100, 'ยินดีต้อนรับกลับ! 🎉'],
-      ];
-      let cur = 0, mIdx = 0;
-      const dest = (data.role === 'admin' || data.role === 'researcher') ? '/admin_panel' : '/dashboard';
-      function tick() {
-        if (cur >= 100) {
-          pctEl.textContent = '100%';
-          circle.style.strokeDashoffset = '0';
-          stepEl.textContent = 'ยินดีต้อนรับกลับ! 🎉';
-          setTimeout(() => { window.location.href = dest; }, 400);
-          return;
-        }
-        cur += Math.random() < 0.5 ? 2 : 3;
-        if (cur > 100) cur = 100;
-        circle.style.strokeDashoffset = circ - (cur / 100) * circ;
-        pctEl.textContent = cur + '%';
-        if (mIdx < msgs.length && cur >= msgs[mIdx][0]) {
-          stepEl.textContent = msgs[mIdx][1];
-          mIdx++;
-        }
-        setTimeout(tick, 28);
-      }
-      setTimeout(tick, 80);
-    })
-    .catch(() => {
-      // token หมดอายุหรือไม่ถูกต้อง → ล้างแล้วแสดงฟอร์ม
-      localStorage.removeItem('auth_token');
-      showForm();
-    });
-})();
-</script>
-
-<!-- Post-Login Loading Overlay -->
-<div id="loadingOverlay" class="fixed inset-0 z-[9999] flex-col items-center justify-center hidden"
-     style="background: linear-gradient(135deg, #064e3b 0%, #065f46 40%, #047857 100%);">
-  <div class="flex flex-col items-center gap-6 px-8 w-full max-w-xs">
-
-    <!-- Logo pulse -->
-    <div class="relative flex items-center justify-center">
-      <div class="absolute w-24 h-24 rounded-full bg-white/10 animate-ping" style="animation-duration:1.4s;"></div>
-      <div class="absolute w-20 h-20 rounded-full bg-white/15 animate-ping" style="animation-duration:1.8s;animation-delay:0.3s;"></div>
-      <div class="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center shadow-2xl border border-white/30">
-        <span class="text-3xl">🌿</span>
-      </div>
-    </div>
-
-    <!-- App name -->
-    <div class="text-center">
-      <p class="text-white/60 text-[11px] font-bold uppercase tracking-[0.2em] mb-1">mHealth Anti-Aging</p>
-      <p id="loadingStep" class="text-white text-sm font-bold">กำลังตรวจสอบตัวตน...</p>
-    </div>
-
-    <!-- Percentage circle -->
-    <div class="relative w-28 h-28">
-      <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="8"/>
-        <circle id="progressCircle" cx="50" cy="50" r="42" fill="none"
-          stroke="white" stroke-width="8" stroke-linecap="round"
-          stroke-dasharray="264" stroke-dashoffset="264"
-          style="transition: stroke-dashoffset 0.4s ease;"/>
-      </svg>
-      <div class="absolute inset-0 flex flex-col items-center justify-center">
-        <span id="loadingPct" class="text-white text-2xl font-black">0%</span>
-      </div>
-    </div>
-
-    <!-- Step dots -->
-    <div class="flex gap-2 items-center">
-      <div id="dot1" class="w-2 h-2 rounded-full bg-white/30 transition-all duration-300"></div>
-      <div id="dot2" class="w-2 h-2 rounded-full bg-white/30 transition-all duration-300"></div>
-      <div id="dot3" class="w-2 h-2 rounded-full bg-white/30 transition-all duration-300"></div>
-      <div id="dot4" class="w-2 h-2 rounded-full bg-white/30 transition-all duration-300"></div>
-    </div>
-
-  </div>
-</div>
-
-<script>
 lucide.createIcons();
 
-const STEPS = [
-  { pct: 20, text: 'กำลังตรวจสอบตัวตน...', dot: 'dot1' },
-  { pct: 50, text: 'โหลดข้อมูลโปรไฟล์...', dot: 'dot2' },
-  { pct: 75, text: 'เตรียมแดชบอร์ด...', dot: 'dot3' },
-  { pct: 95, text: 'เกือบเสร็จแล้ว...', dot: 'dot4' },
-];
+// ── Auto-redirect if token still valid ──
+(function() {
+  const token = localStorage.getItem('auth_token');
+  if (!token) return;
+  fetch('/api/check_session', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      if (d && d.valid) {
+        window.location.href = (d.role === 'admin' || d.role === 'researcher') ? '/admin_panel' : '/dashboard';
+      } else {
+        localStorage.removeItem('auth_token');
+      }
+    }).catch(() => localStorage.removeItem('auth_token'));
+})();
 
-function showLoadingOverlay() {
-  const overlay = document.getElementById('loadingOverlay');
-  overlay.classList.remove('hidden');
-  overlay.classList.add('flex');
+// ── Login form with inline button progress ──
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+  e.preventDefault();
 
-  const circle = document.getElementById('progressCircle');
-  const pctEl = document.getElementById('loadingPct');
-  const stepEl = document.getElementById('loadingStep');
-  const circumference = 264;
+  const btn      = document.getElementById('loginBtn');
+  const bar      = document.getElementById('btnProgressBar');
+  const btnText  = document.getElementById('loginBtnText');
+  const btnIcon  = document.getElementById('loginBtnIcon');
+  const btnPct   = document.getElementById('loginBtnPct');
+  const errBox   = document.getElementById('loginError');
+  const errMsg   = document.getElementById('loginErrorMsg');
 
-  let stepIndex = 0;
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
 
-  function setProgress(pct, text, dotId) {
-    const offset = circumference - (pct / 100) * circumference;
-    circle.style.strokeDashoffset = offset;
-    pctEl.textContent = pct + '%';
-    if (text) stepEl.textContent = text;
-    if (dotId) {
-      document.getElementById(dotId).classList.remove('bg-white/30');
-      document.getElementById(dotId).classList.add('bg-white', 'scale-125');
-    }
+  errBox.classList.add('hidden');
+  btn.disabled = true;
+
+  // Show progress UI on button
+  btnText.classList.add('hidden');
+  btnIcon.classList.add('hidden');
+  btnPct.classList.remove('hidden');
+
+  let pct = 0;
+  let resolved = false;
+
+  // Simulated crawl 0→85% while waiting for server
+  function crawl() {
+    if (resolved || pct >= 85) return;
+    pct += pct < 30 ? 4 : pct < 60 ? 2 : 0.8;
+    if (pct > 85) pct = 85;
+    bar.style.width = pct + '%';
+    btnPct.textContent = Math.round(pct) + '%';
+    setTimeout(crawl, 60);
   }
+  crawl();
 
-  // Animate through steps
-  function runStep(i) {
-    if (i >= STEPS.length) return;
-    const s = STEPS[i];
-    setTimeout(() => {
-      setProgress(s.pct, s.text, s.dot);
-      runStep(i + 1);
-    }, i === 0 ? 100 : 500);
-  }
-  runStep(0);
+  // XHR for real upload progress
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/login');
+  xhr.setRequestHeader('Content-Type', 'application/json');
 
-  return { setProgress };
-}
-
-document.getElementById('loginForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('loginBtn');
-    const btnText = document.getElementById('loginBtnText');
-    const btnIcon = document.getElementById('loginBtnIcon');
-    const errBox = document.getElementById('loginError');
-    const errMsg = document.getElementById('loginErrorMsg');
-    errBox.classList.add('hidden');
-    btn.disabled = true;
-    btnText.textContent = 'กำลังตรวจสอบ...';
-    if (btnIcon) btnIcon.style.display = 'none';
-
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value;
-
-    try {
-        const resp = await fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
-        const data = await resp.json();
-        if (data.ok) {
-            localStorage.setItem('auth_token', data.token);
-            const loader = showLoadingOverlay();
-            const sep = data.redirect.includes('?') ? '&' : '?';
-            const target = data.redirect + sep + '_t=' + encodeURIComponent(data.token);
-            // Complete to 100% then redirect
-            setTimeout(() => {
-              loader.setProgress(100, 'ยินดีต้อนรับ! 🎉', null);
-              document.getElementById('loadingPct').textContent = '100%';
-            }, 2200);
-            setTimeout(() => {
-              window.location.href = target;
-            }, 2700);
-        } else {
-            errMsg.textContent = data.error || 'เข้าสู่ระบบไม่สำเร็จ';
-            errBox.classList.remove('hidden');
-            btn.disabled = false;
-            btnText.textContent = 'เข้าสู่ระบบ';
-            if (btnIcon) btnIcon.style.display = '';
-        }
-    } catch (err) {
-        errMsg.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
-        errBox.classList.remove('hidden');
-        btn.disabled = false;
-        btnText.textContent = 'เข้าสู่ระบบ';
-        if (btnIcon) btnIcon.style.display = '';
+  xhr.upload.onprogress = function(ev) {
+    if (ev.lengthComputable && pct < 40) {
+      pct = Math.max(pct, (ev.loaded / ev.total) * 40);
+      bar.style.width = pct + '%';
+      btnPct.textContent = Math.round(pct) + '%';
     }
+  };
+
+  xhr.onprogress = function(ev) {
+    if (ev.lengthComputable && pct < 85) {
+      pct = Math.max(pct, 40 + (ev.loaded / ev.total) * 45);
+      bar.style.width = pct + '%';
+      btnPct.textContent = Math.round(pct) + '%';
+    }
+  };
+
+  xhr.onload = function() {
+    resolved = true;
+    let data;
+    try { data = JSON.parse(xhr.responseText); } catch { data = {}; }
+
+    if (data.ok) {
+      localStorage.setItem('auth_token', data.token);
+      // Animate 95→100% then redirect
+      pct = 95;
+      bar.style.width = '95%';
+      btnPct.textContent = '95%';
+      const sep = data.redirect.includes('?') ? '&' : '?';
+      const target = data.redirect + sep + '_t=' + encodeURIComponent(data.token);
+      setTimeout(() => {
+        bar.style.width = '100%';
+        btnPct.textContent = '100%';
+        setTimeout(() => { window.location.href = target; }, 200);
+      }, 250);
+    } else {
+      // Reset button
+      resolved = true;
+      bar.style.width = '0%';
+      btnText.classList.remove('hidden');
+      btnIcon.classList.remove('hidden');
+      btnPct.classList.add('hidden');
+      btn.disabled = false;
+      errMsg.textContent = data.error || 'เข้าสู่ระบบไม่สำเร็จ';
+      errBox.classList.remove('hidden');
+    }
+  };
+
+  xhr.onerror = function() {
+    resolved = true;
+    bar.style.width = '0%';
+    btnText.classList.remove('hidden');
+    btnIcon.classList.remove('hidden');
+    btnPct.classList.add('hidden');
+    btn.disabled = false;
+    errMsg.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+    errBox.classList.remove('hidden');
+  };
+
+  xhr.send(JSON.stringify({ email, password }));
 });
 </script>
 {% endblock %}

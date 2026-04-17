@@ -117,9 +117,10 @@
             {% endif %}
             {% for item in materials %}
             {% set is_video = 'youtube' in item.url or 'youtu.be' in item.url %}
+            {% set is_image = item.url.lower().endswith(('.jpg','.jpeg','.png','.gif','.webp','.svg')) %}
             {% set item_id_str = item.id | string %}
             <div
-                onclick="openContent('{{ item.url }}', {{ item_id_str }}, '{{ item.title | replace("'", "\\'") | replace('"', '\\"') }}', {{ 'true' if is_video else 'false' }})"
+                onclick="openContent('{{ item.url }}', {{ item_id_str }}, '{{ item.title | replace("'", "\\'") | replace('"', '\\"') }}', {{ 'true' if is_video else 'false' }}, {{ 'true' if is_image else 'false' }})"
                 class="edu-card content-item bg-white rounded-[16px] overflow-hidden shadow-sm border border-slate-100"
                 data-category="{{ item.category }}"
             >
@@ -135,6 +136,10 @@
                             </div>
                         </div>
                         <span class="absolute top-2 left-2 bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full">VIDEO</span>
+                    {% elif is_image %}
+                        <img src="{{ item.url }}" alt="{{ item.title }}" class="w-full h-full object-cover" loading="lazy"
+                             onerror="this.parentElement.innerHTML='<div class=\'w-full h-full bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center\'><span class=\'text-3xl\'>🖼️</span></div>'">
+                        <span class="absolute top-2 left-2 bg-rose-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full">IMAGE</span>
                     {% else %}
                         <div class="w-full h-full bg-gradient-to-br from-indigo-100 to-sky-100 flex items-center justify-center">
                             <i data-lucide="file-text" class="w-8 h-8 text-indigo-300"></i>
@@ -211,6 +216,18 @@
                     </div>
                     <a id="fallbackLink" href="#" target="_blank" rel="noopener" class="h-11 px-7 bg-indigo-500 text-white font-black rounded-full flex items-center gap-2 shadow-lg shadow-indigo-500/30 text-sm">
                         <i data-lucide="external-link" class="w-4 h-4"></i> เปิดในเบราว์เซอร์
+                    </a>
+                </div>
+            </div>
+            <!-- Image viewer -->
+            <div id="imageContainer" class="hidden absolute inset-0 flex items-center justify-center bg-[#0f172a] p-4">
+                <img id="imageViewer" src="" alt="" class="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+                     onerror="document.getElementById('imageFallback').classList.remove('hidden');this.classList.add('hidden');">
+                <div id="imageFallback" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-8">
+                    <span class="text-5xl">🖼️</span>
+                    <p class="text-white font-black text-sm">โหลดรูปภาพไม่ได้</p>
+                    <a id="imageExtLink" href="#" target="_blank" rel="noopener" class="h-10 px-6 bg-rose-500 text-white font-black rounded-full flex items-center gap-2 text-sm">
+                        <i data-lucide="external-link" class="w-4 h-4"></i> เปิดรูปในเบราว์เซอร์
                     </a>
                 </div>
             </div>
@@ -300,8 +317,8 @@
     }
 
     /* ── Open viewer ── */
-    function openContent(url, itemId, title, isVideo) {
-        currentContent = { url, itemId, title, isVideo };
+    function openContent(url, itemId, title, isVideo, isImage) {
+        currentContent = { url, itemId, title, isVideo, isImage };
         const viewer  = document.getElementById('contentViewer');
         const titleEl = document.getElementById('viewerTitle');
         const extLink = document.getElementById('viewerExternal');
@@ -310,6 +327,8 @@
         const ytBox   = document.getElementById('ytContainer');
         const arBox   = document.getElementById('articleContainer');
         const arFb    = document.getElementById('articleFallback');
+        const imgBox  = document.getElementById('imageContainer');
+        const imgFb   = document.getElementById('imageFallback');
         const loader  = document.getElementById('viewerLoader');
         const scoreBtn= document.getElementById('viewerScoreBtn');
 
@@ -320,6 +339,8 @@
         ytBox.classList.add('hidden');
         arBox.classList.add('hidden');
         arFb.classList.add('hidden');
+        imgBox.classList.add('hidden');
+        imgFb.classList.add('hidden');
         loader.classList.remove('hidden');
 
         // Show already-rated state
@@ -339,13 +360,27 @@
                 frame.onload = () => {
                     loader.classList.add('hidden');
                     if (!scores[itemId]) scoreBtn.classList.remove('hidden');
-                    // Award points when video starts playing
                     awardVideoPoints(itemId);
                 };
                 ytBox.classList.remove('hidden');
             } else {
                 _loadArticle(url);
             }
+        } else if (isImage) {
+            icon.className = 'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-rose-500/20';
+            iconI.setAttribute('data-lucide', 'image');
+            iconI.className = 'w-3.5 h-3.5 text-rose-400';
+            const imgEl = document.getElementById('imageViewer');
+            document.getElementById('imageExtLink').href = url;
+            imgFb.classList.add('hidden');
+            imgEl.classList.remove('hidden');
+            imgEl.src = url;
+            imgEl.alt = title;
+            imgEl.onload = () => {
+                loader.classList.add('hidden');
+                if (!scores[itemId]) scoreBtn.classList.remove('hidden');
+            };
+            imgBox.classList.remove('hidden');
         } else {
             icon.className = 'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-indigo-500/20';
             iconI.setAttribute('data-lucide', 'file-text');
