@@ -383,7 +383,7 @@
         (function startHeartbeat() {
             const send = () => fetch('/api/heartbeat', { method: 'POST' }).catch(() => {});
             send();
-            setInterval(send, 15000);
+            setInterval(send, 30000);
         })();
 
         /* ── Notification polling: ดึง notification ทุก 10 วินาที (สำหรับ user เท่านั้น) ── */
@@ -431,7 +431,7 @@
             }
 
             pollNotifications();
-            setInterval(pollNotifications, 10000);
+            setInterval(pollNotifications, 30000);
         })();
         {% endif %}
 

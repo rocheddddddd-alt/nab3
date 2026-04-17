@@ -127,8 +127,16 @@
                 <!-- Thumbnail -->
                 <div class="card-thumb relative w-full aspect-video bg-slate-100 overflow-hidden">
                     {% if is_video %}
-                        {% set vid_id = item.url.split('v=')[-1].split('&')[0] if 'v=' in item.url else item.url.split('/')[-1] %}
-                        <img src="https://img.youtube.com/vi/{{ vid_id }}/mqdefault.jpg" alt="{{ item.title }}" class="w-full h-full object-cover" loading="lazy">
+                        {% if 'v=' in item.url %}
+                            {% set vid_id = item.url.split('v=')[-1].split('&')[0].split('?')[0] %}
+                        {% else %}
+                            {% set vid_id = item.url.split('/')[-1].split('?')[0] %}
+                        {% endif %}
+                        <img src="https://img.youtube.com/vi/{{ vid_id }}/hqdefault.jpg"
+                             alt="{{ item.title }}"
+                             class="w-full h-full object-cover"
+                             loading="lazy"
+                             onerror="this.onerror=null;this.src='https://img.youtube.com/vi/{{ vid_id }}/mqdefault.jpg';this.onerror=function(){this.style.display='none';}">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
                         <div class="absolute inset-0 flex items-center justify-center">
                             <div class="w-9 h-9 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-md pl-0.5">
