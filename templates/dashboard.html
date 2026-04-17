@@ -379,11 +379,11 @@
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             pos => fetchWeather(pos.coords.latitude, pos.coords.longitude),
-            ()  => fetchWeather(13.7563, 100.5018),
+            ()  => fetchWeather(15.8656, 104.6257),
             { timeout: 8000 }
         );
     } else {
-        fetchWeather(13.7563, 100.5018);
+        fetchWeather(15.8656, 104.6257);
     }
 })();
 
@@ -435,11 +435,11 @@
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             pos => fetchAQI(pos.coords.latitude, pos.coords.longitude),
-            () => fetchAQI(13.7563, 100.5018),
+            () => fetchAQI(15.8656, 104.6257),
             { timeout: 8000 }
         );
     } else {
-        fetchAQI(13.7563, 100.5018);
+        fetchAQI(15.8656, 104.6257);
     }
 })();
 
