@@ -101,7 +101,9 @@ lucide.createIcons();
     .then(r => r.ok ? r.json() : null)
     .then(d => {
       if (d && d.valid) {
-        window.location.href = (d.role === 'admin' || d.role === 'researcher') ? '/admin_panel' : '/dashboard';
+        const token = localStorage.getItem('auth_token');
+        const dest  = (d.role === 'admin' || d.role === 'researcher') ? '/admin_panel' : '/dashboard';
+        window.location.href = dest + '?_t=' + encodeURIComponent(token);
       } else {
         localStorage.removeItem('auth_token');
       }
