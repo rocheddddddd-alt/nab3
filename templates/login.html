@@ -127,52 +127,68 @@
 {% block scripts %}
 <script src="https://unpkg.com/lucide@latest"></script>
 <script>
-// ── Page Splash ──────────────────────────────────────────
+// ── Page Splash — ตรวจสอบ token แล้วค่อยโหลดหรือแสดงฟอร์ม ──
 (function() {
-  const circle = document.getElementById('splashCircle');
-  const pctEl  = document.getElementById('splashPct');
-  const stepEl = document.getElementById('splashStep');
+  const token  = localStorage.getItem('auth_token');
   const splash = document.getElementById('pageSplash');
   const main   = document.getElementById('mainContent');
-  const circumference = 251;
 
-  const msgs = [
-    [15, 'กำลังเริ่มต้นระบบ...'],
-    [40, 'โหลดการตั้งค่า...'],
-    [70, 'เตรียมหน้าเข้าสู่ระบบ...'],
-    [90, 'เกือบพร้อมแล้ว...'],
-    [100, 'พร้อมใช้งาน! ✨'],
-  ];
-
-  let current = 0;
-  let msgIdx  = 0;
-
-  function tick() {
-    if (current >= 100) {
-      pctEl.textContent = '100%';
-      circle.style.strokeDashoffset = '0';
-      stepEl.textContent = 'พร้อมใช้งาน! ✨';
-      setTimeout(() => {
-        splash.style.transition = 'opacity 0.45s ease, transform 0.45s ease';
-        splash.style.opacity = '0';
-        splash.style.transform = 'scale(1.04)';
-        main.style.opacity = '1';
-        setTimeout(() => splash.remove(), 500);
-      }, 300);
-      return;
-    }
-    current += Math.random() < 0.5 ? 2 : 3;
-    if (current > 100) current = 100;
-    const offset = circumference - (current / 100) * circumference;
-    circle.style.strokeDashoffset = offset;
-    pctEl.textContent = current + '%';
-    if (msgIdx < msgs.length && current >= msgs[msgIdx][0]) {
-      stepEl.textContent = msgs[msgIdx][1];
-      msgIdx++;
-    }
-    setTimeout(tick, 28);
+  function showForm() {
+    splash.remove();
+    main.style.opacity = '1';
   }
-  setTimeout(tick, 120);
+
+  // ไม่มี token = ออกจากระบบแล้ว → แสดงฟอร์มเลย ไม่โหลด
+  if (!token) { showForm(); return; }
+
+  // มี token → ตรวจสอบกับ server ก่อน
+  fetch('/api/check_session', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(r => {
+      if (!r.ok) throw new Error('invalid');
+      return r.json();
+    })
+    .then(data => {
+      if (!data.valid) throw new Error('invalid');
+
+      // token ยังใช้ได้ → เริ่ม splash animation แล้วไป dashboard
+      const circle = document.getElementById('splashCircle');
+      const pctEl  = document.getElementById('splashPct');
+      const stepEl = document.getElementById('splashStep');
+      const circ   = 251;
+      const msgs   = [
+        [20,  'ตรวจสอบการเข้าสู่ระบบ...'],
+        [45,  'โหลดข้อมูลผู้ใช้...'],
+        [70,  'เตรียมแดชบอร์ด...'],
+        [90,  'เกือบพร้อมแล้ว...'],
+        [100, 'ยินดีต้อนรับกลับ! 🎉'],
+      ];
+      let cur = 0, mIdx = 0;
+      const dest = (data.role === 'admin' || data.role === 'researcher') ? '/admin_panel' : '/dashboard';
+      function tick() {
+        if (cur >= 100) {
+          pctEl.textContent = '100%';
+          circle.style.strokeDashoffset = '0';
+          stepEl.textContent = 'ยินดีต้อนรับกลับ! 🎉';
+          setTimeout(() => { window.location.href = dest; }, 400);
+          return;
+        }
+        cur += Math.random() < 0.5 ? 2 : 3;
+        if (cur > 100) cur = 100;
+        circle.style.strokeDashoffset = circ - (cur / 100) * circ;
+        pctEl.textContent = cur + '%';
+        if (mIdx < msgs.length && cur >= msgs[mIdx][0]) {
+          stepEl.textContent = msgs[mIdx][1];
+          mIdx++;
+        }
+        setTimeout(tick, 28);
+      }
+      setTimeout(tick, 80);
+    })
+    .catch(() => {
+      // token หมดอายุหรือไม่ถูกต้อง → ล้างแล้วแสดงฟอร์ม
+      localStorage.removeItem('auth_token');
+      showForm();
+    });
 })();
 </script>
 

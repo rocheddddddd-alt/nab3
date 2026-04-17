@@ -711,6 +711,14 @@ def debug_session():
         'logged_in': 'user_id' in session
     })
 
+@app.route('/api/check_session')
+def api_check_session():
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    data  = _verify_token(token) if token else None
+    if data:
+        return jsonify({'valid': True, 'role': data.get('role', 'user')})
+    return jsonify({'valid': False}), 401
+
 @app.route('/logout')
 def logout():
     session.clear()
